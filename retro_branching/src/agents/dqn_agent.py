@@ -73,6 +73,9 @@ class DQNAgent:
         self.update_target_network()
         self.profile_time = profile_time
 
+        # il agent
+        self.il_agent = None
+
     def init_exploration_agent(self):
         if self.exploration_network is None:
             self.exploration_agent = RandomAgent()
@@ -142,6 +145,7 @@ class DQNAgent:
     def create_config(self):
         '''Returns config dict so that can re-initialise easily.'''
         # create agent dict of self.<attribute> key-value pairs
+        print("creat_config1")
         agent_dict = {}
         for key, val in self.__dict__.items():
             # remove NET() networks to avoid circular references and no need to save torch tensors
@@ -149,10 +153,11 @@ class DQNAgent:
                 agent_dict[key] = val
 
         # create config dict
+        print("creat_config2")
         config = {'agent': ml_collections.ConfigDict(agent_dict),
                   'value_network': self.value_network.create_config(),
                   'target_network': self.target_network.create_config()}
-
+        print("creat_config3")
         config = ml_collections.ConfigDict(config)
 
         return config
@@ -200,6 +205,13 @@ class DQNAgent:
 
         return logits
 
+    def action_select_offline(self, obs):
+        with torch.set_grad_enabled(enable_grad):
+            # Compute the logits (i.e. pre-softmax activations) according to the agent policy on the concatenated graphs
+            logits = self.agent(batch.constraint_features, batch.edge_index, batch.edge_attr, batch.variable_features)
+            if type(logits) == list:
+                logits = torch.stack(logits).squeeze(0)
+        return logits
     def action_select(self, **kwargs):
         '''
         state must be either action_set and obs, or a BipartiteNode object with these
@@ -214,6 +226,7 @@ class DQNAgent:
             model
             done
         '''
+
         if 'state' not in kwargs:
             if 'action_set' not in kwargs and 'obs' not in kwargs:
                 raise Exception('Must provide either state or action_set and obs as kwargs.')
@@ -225,13 +238,29 @@ class DQNAgent:
         if 'state' in kwargs:
             self.obs = (kwargs['state'].constraint_features, kwargs['state'].edge_index, kwargs['state'].edge_attr, kwargs['state'].variable_features)
             self.action_set = torch.as_tensor(kwargs['state'].candidates)
+            scores = (kwargs['scores'])
+            #print(f'self.action_set{self.action_set.shape}{self.action_set}\nscores{len(scores)}scores0{len(scores[0])}\n')
+            #self.sb_action = self.action_set[scores[self.action_set].argmax()]
+
+            #print(f'self.sb_action{self.sb_action}\n')
+
         else:
             # unpack
             self.action_set, self.obs = kwargs['action_set'], kwargs['obs']
             if isinstance(self.action_set, np.ndarray):
                 self.action_set = torch.as_tensor(self.action_set)
+            if type(self.obs) == list:
+                obs,sb_obs = self.obs
+                self.obs = obs
+                scores = sb_obs
+                self.sb_action = self.action_set[scores[self.action_set].argmax()]
+                #print(f'self.action_set{self.action_set.shape}{self.action_set}\nscores{len(scores)}{scores}\nself.sb_action{self.sb_action}\n')
+                
+                #print('unpack obs')
 
         self.logits = self.calc_Q_values(self.obs, use_target_network=False)
+
+        #self.il_logits = self.action_select_offline(self.obs)
 
         if type(self.logits) == list:
             # Q-heads DQN, need to aggregate to get values for each action
@@ -257,12 +286,21 @@ class DQNAgent:
         else:
             # no heads
             self.preds = self.logits[self.action_set]
-
+        
         if 'state' in kwargs:
             # batch of observations
             self.preds = self.preds.split_with_sizes(tuple(kwargs['state'].num_candidates))
             self.action_set = kwargs['state'].raw_candidates.split_with_sizes(tuple(kwargs['state'].num_candidates))
-
+            #print(f'111self.action_set{len(self.action_set)}{self.action_set}\n')
+            #self.sb_action = self.action_set[scores[self.action_set].argmax()]
+            #scores = torch.from_numpy(scores).to(self.device)
+            # for _action_set,score in zip(self.action_set,scores):
+            #     #print(f'_action_set{_action_set}score{score}')
+            #     sb_action_index = torch.from_numpy(score).to(self.device)[_action_set].argmax()
+            #     sb_action = _action_set[sb_action_index]
+            #     print(f'sb_action_index{sb_action_index}sb_action{sb_action}')
+            self.sb_action = torch.stack([_action_set[torch.from_numpy(score).to(self.device)[_action_set].argmax()] for _action_set,score in zip(self.action_set,scores)])
+            #print(f'action_set{self.action_set[0]}scores{scores[0]}')
             if kwargs['epsilon'] > 0:
                 # explore
                 raise Exception('Have not yet implemented exploration for batched scenarios.')
@@ -277,12 +315,41 @@ class DQNAgent:
                     m = [torch.distributions.Categorical(preds) for preds in self.preds] # init discrete categorical distribution from softmax probs
                     self.action_idx = torch.stack([_m.sample() for _m in m]) # sample action from categorical distribution
                 self.action = torch.stack([_action_set[idx] for _action_set, idx in zip(self.action_set, self.action_idx)])
+
+            #print(f'action{self.action.shape}{self.action}\nsb_action{self.sb_action.shape}{self.sb_action}')
+            #print(f'type_preds{type(self.preds)}type_action_set{type(self.action_set)}')
+            
+            final_action = []
+            # policy expansion logic
+            for pred,action_set,action_idx,sb_action in zip(self.preds,self.action_set,self.action_idx,self.sb_action):
+                # get Q-value of normal action and sb action 
+                q_action = pred[action_idx] 
+                sb_action_idx = torch.where(action_set == sb_action)[0].item()
+                q_sb_action = pred[sb_action_idx]
+                
+                # re sample between two actions base one Q-value
+                q = torch.stack([q_action, q_sb_action], dim=-1)
+                logits = q #* self._inv_temperature
+                w_dist = torch.distributions.Categorical(logits=logits)
+                w = w_dist.sample().unsqueeze(-1)   
+                action_idx_temp = (1 - w) * action_idx + w * sb_action_idx
+                # change the final action output
+                action = action_set[action_idx_temp.item()]
+                final_action.append(action)
+
+            
+            final_action = torch.stack(final_action,dim=0)
+            #print(f'final_action{final_action}')
+            self.action = final_action
+
+
         else:
             # single observation
             if random.random() > kwargs['epsilon']:
                 # exploit
                 if kwargs['munchausen_tau'] == 0 or self.deterministic_mdqn:
                     # deterministically select greedy action
+                    #print('argmax here')
                     self.action_idx = torch.argmax(self.preds)
                 else:
                     # use softmax policy to stochastically select greedy action
@@ -295,6 +362,34 @@ class DQNAgent:
                 # uniform random action selection
                 self.action, self.action_idx = self.exploration_agent.action_select(action_set=self.action_set, obs=self.obs, model=kwargs['model'], done=kwargs['done'], sample_stochastically=self.sample_stochastically)
 
+            # policy expansion logic
+            # get Q-value of normal action and sb action 
+            q_action = self.preds[self.action_idx] 
+            sb_action_idx = torch.where(self.action_set == self.sb_action)[0].item()
+            q_sb_action = self.preds[sb_action_idx]
+            
+            # re sample between two actions base one Q-value
+            q = torch.stack([q_action, q_sb_action], dim=-1)
+            logits = q #* self._inv_temperature
+            w_dist = torch.distributions.Categorical(logits=logits)
+            w = w_dist.sample().unsqueeze(-1)   
+            action_idx_temp = (1 - w) * self.action_idx + w * sb_action_idx
+            # change the final action output
+            self.action = self.action_set[action_idx_temp.item()]
+
+            if False:
+                print(f'self.action:{self.action.shape}{self.action}')
+                print(f'self.action_set{self.action_set.shape}{self.action_set}\nscores{len(scores)}{scores}\nself.sb_action{self.sb_action}\n')
+                print(f'self.preds{self.preds.shape}{self.preds}')
+                print(f'self.action_idx{self.action_idx}')
+                print(f'sb_action_idx{sb_action_idx}')
+                print(f'self.action_preds{q_action},self.sb_action_preds{q_sb_action}')
+                print(f'logits{logits}')
+                print(f'w_dist{w_dist}')
+                print(f'w{w}')
+                print(f'action_idx_temp{action_idx_temp}')
+
+            
             # self.action = self.action_set[self.action_idx.item()]
 
         # print('final | action set: {} action: {} | action idx: {}'.format(self.action_set, self.action, self.action_idx))

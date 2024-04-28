@@ -1,6 +1,6 @@
-from retro_branching.utils import check_if_network_params_equal, seed_stochastic_modules_globally
+from retro_branching.utils import check_if_network_params_equal, seed_stochastic_modules_globally,gen_co_name
 from retro_branching.networks import BipartiteGCN
-from retro_branching.agents import DQNAgent
+from retro_branching.agents import DQNAgent,Agent
 from retro_branching.environments import EcoleBranching
 from retro_branching.learners import DQNLearner
 
@@ -45,6 +45,26 @@ def run(cfg: DictConfig):
     agent.train()
     print(f'Initialised DQN agent.')
     
+    # load trained il agent here
+    # is an ML agent
+    
+    # path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+    # config = path + 'config.json'
+    # il_agent = Agent(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)
+    # for network_name, network in il_agent.get_networks().items():
+    #     if network is not None:
+    #         try:
+    #             # see if network saved under same var as 'network_name'
+    #             il_agent.__dict__[network_name].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+    #         except KeyError:
+    #             # network saved under generic 'network' var (as in Agent class)
+    #             il_agent.__dict__['network'].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+    #     else:
+    #         print(f'{network_name} is None.')
+    # il_agent.eval() # put in test mode
+
+    # agent.il_agent = il_agent
+
     # initialise instance generator
     if 'path_to_instances' in cfg.instances:
         instances = ecole.instance.FileGenerator(cfg.instances.path_to_instances, sampling_mode=cfg.instances.sampling_mode)

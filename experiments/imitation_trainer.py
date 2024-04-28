@@ -76,7 +76,7 @@ def run(cfg: DictConfig):
                                 lr=cfg.learner.lr,
                                 bipartite_ranking_alpha=0.5,
                                 epoch_log_frequency=cfg.learner.epoch_log_frequency,
-                                checkpoint_frequency=cfg.learner.checkpoint_log_frequency,
+                                checkpoint_frequency=cfg.learner.checkpoint_frequency,
                                 save_logits_and_target=True,
                                 path_to_save=cfg.experiment.path_to_save,
                                 name=cfg.learner.name)
@@ -84,6 +84,7 @@ def run(cfg: DictConfig):
 
     # train agent
     print('Training imitation agent...')
+    print('Training imitation2 agent...')
     learner.train(cfg.experiment.num_epochs)
 
 if __name__ == '__main__':

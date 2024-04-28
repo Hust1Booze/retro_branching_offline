@@ -33,8 +33,10 @@ def run(cfg: DictConfig):
     agents = {}
     if cfg.experiment.agent_name not in set(['pseudocost_branching', 'strong_branching', 'scip_branching']):
         # is an ML agent
-        path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+        path = cfg.experiment.path_to_load_agent
+        #path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
         config = path + 'config.json'
+        print('config :'+ config)
         agent = Agent(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)
         for network_name, network in agent.get_networks().items():
             if network is not None:
@@ -51,7 +53,10 @@ def run(cfg: DictConfig):
         # is a standard heuristic
         cfg.experiment.device = 'cpu'
         agent = cfg.experiment.agent_name
+    #path_to_save_baseline = cfg.experiment.path_to_save + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
     path_to_save_baseline = cfg.experiment.path_to_save + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+    if cfg.experiment.agent_name not in set(['pseudocost_branching', 'strong_branching', 'scip_branching']):
+        path_to_save_baseline = path
     agents[path_to_save_baseline] = agent
     print(f'Initialised agent and agent-to-path dict: {agents}')
 

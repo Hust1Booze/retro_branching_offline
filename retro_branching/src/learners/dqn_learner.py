@@ -172,11 +172,21 @@ class BacktrackRollout:
         return env, obs, action_set, reward, done, info, self.instance_before_reset
 
 def extract_state_tensors_from_ecole_obs(obs, action_set):
+    
+    obs,sb_obs = obs
+    scores = sb_obs
+
+    #print(f'obs{obs}')
+    #print(f'sb_obs{sb_obs}')
+    #print(f'scores{scores}')
+    #import sys
+    #sys.exit()
     return (obs.row_features.astype(np.float32), 
             obs.edge_features.indices.astype(np.int16),
             obs.edge_features.values.astype(np.float32),
             obs.column_features.astype(np.float32),
-            action_set.astype(np.int16))
+            action_set.astype(np.int16),
+            ),scores
 
 def process_episodes_into_subtree_episodes(episode_experiences,
                                            reward, 
@@ -411,7 +421,8 @@ Transition = namedtuple('Transition', field_names=['state',
                                                    'n_step_return',
                                                    'n_step_state',
                                                    'n',
-                                                   'n_step_done'])
+                                                   'n_step_done',
+                                                   'scores'])
 
 
 
@@ -620,7 +631,7 @@ class ReplayBuffer:
                 
         # collect the sampled transitions 
         zip_sampled_transitions_start = time.time()
-        state, action, reward, done, next_state, n_step_return, n_step_state, n, n_step_done = zip(*[self.buffer[idx] for idx in indices])
+        state, action, reward, done, next_state, n_step_return, n_step_state, n, n_step_done ,scores= zip(*[self.buffer[idx] for idx in indices])
         if self.profile_time:
             zip_sampled_transitions_t = time.time() - zip_sampled_transitions_start 
             print(f'zip_sampled_transitions_t: {zip_sampled_transitions_t*1e3:.3f} ms')
@@ -635,12 +646,14 @@ class ReplayBuffer:
             n_step_state = [pickle.loads(snappy.uncompress(_n_step_state)) for _n_step_state in n_step_state]
             n = [pickle.loads(snappy.uncompress(_n)) for _n in n]
             n_step_done = [pickle.loads(snappy.uncompress(_n_step_done)) for _n_step_done in n_step_done]
+            scores = [pickle.loads(snappy.uncompress(_scores)) for _scores in scores]
 
         # conv states to state object
         state = [BipartiteNodeData(*s) for s in state]
         next_state = [BipartiteNodeData(*s) for s in next_state]
         n_step_state = [BipartiteNodeData(*s) for s in n_step_state]
 
+        #print(f'done{done}\n scores{scores}')
         return (Batch.from_data_list(state),
                 torch.tensor(action),
                 torch.tensor(reward),
@@ -651,7 +664,8 @@ class ReplayBuffer:
                 n,
                 torch.tensor(n_step_done).float(),
                 torch.tensor(indices),
-                importance_sampling_weights)
+                importance_sampling_weights,
+                scores)
 
 
 
@@ -1159,6 +1173,8 @@ class DQNLearner(Learner):
                 if num_attempts >= max_attempts:
                     raise Exception(f'Unable to find instance which is not pre-solved after {num_attempts} attempts.')
             self.env_ready = True
+
+            #print(f'obs{obs}')
             return env, obs, action_set, reward, done, info, instance_before_reset
 
         else:
@@ -1221,7 +1237,7 @@ class DQNLearner(Learner):
         stats = {}
 
         sample_buffer_start = time.time()
-        state, action, reward, done, next_state, n_step_return, n_step_state, n, n_step_done, indices, importance_sampling_weights = self.buffer.sample(batch_size=self.batch_size, use_cer=use_cer, per_beta=self.get_per_beta())
+        state, action, reward, done, next_state, n_step_return, n_step_state, n, n_step_done, indices, importance_sampling_weights,scores = self.buffer.sample(batch_size=self.batch_size, use_cer=use_cer, per_beta=self.get_per_beta())
         is_demonstrator = torch.where(indices >= self.buffer.agent_buffer_capacity, 1, 0)
         if self.profile_time:
             print(state.to('cpu'))
@@ -1245,6 +1261,16 @@ class DQNLearner(Learner):
         state = state.to(self.agent.device)
         obs = (state.constraint_features, state.edge_index, state.edge_attr, state.variable_features)
         action = action.to(self.agent.device)
+
+        #print(f'constraint_features: {state.constraint_features.shape} {state.constraint_features}')
+        #print(f'edge_index: {state.edge_index.shape} {state.edge_index}')
+        #print(f'edge_attr: {state.edge_attr.shape} {state.edge_attr}')
+        #print(f'variable_features: {state.variable_features.shape} {state.variable_features}')
+        #import sys
+        #sys.exit()
+        
+        # Index the res
+
         if not self.use_n_step_dqn or self.demonstrator_agent is not None:
             # need to use 1-step ahead data
             next_state = next_state.to(self.agent.device)
@@ -1308,20 +1334,20 @@ class DQNLearner(Learner):
             if self.use_double_dqn:
                 if self.use_n_step_dqn:
                     raise Exception('Not implemented n-step DQN for double DQN.')
-                next_action_1, _ = self.agent.action_select(state=next_state, epsilon=0, agent_idx=0)
+                next_action_1, _ = self.agent.action_select(state=next_state,scores = scores, epsilon=0, agent_idx=0)
                 next_action_1 = self.action_to_batch_idxs(next_action_1, next_state).type(torch.LongTensor)
-                next_action_2, _ = self.agent.action_select(state=next_state, epsilon=0, agent_idx=1)
+                next_action_2, _ = self.agent.action_select(state=next_state, scores = scores,epsilon=0, agent_idx=1)
                 next_action_2 = self.action_to_batch_idxs(next_action_2, next_state).type(torch.LongTensor)
                 if self.debug_mode:
                     print(f'next_action_1: {next_action_1.shape} {next_action_1}\n next_action_2: {next_action_2.shape} {next_action_2}')
             else:
                 if not self.use_n_step_dqn or self.demonstrator_agent is not None:
-                    next_action, _ = self.agent.action_select(state=next_state, epsilon=0, agent_idx=0)
+                    next_action, _ = self.agent.action_select(state=next_state, scores = scores,epsilon=0, agent_idx=0)
                     next_action = self.action_to_batch_idxs(next_action, next_state).type(torch.LongTensor)
                     if self.debug_mode:
                         print(f'next_action: {next_action.shape} {next_action}')
                 if self.use_n_step_dqn or self.demonstrator_agent is not None:
-                    n_step_action, _ = self.agent.action_select(state=n_step_state, epsilon=0, agent_idx=0)
+                    n_step_action, _ = self.agent.action_select(state=n_step_state,scores = scores, epsilon=0, agent_idx=0)
                     n_step_action = self.action_to_batch_idxs(n_step_action, n_step_state).type(torch.LongTensor)
                     if self.debug_mode:
                         print(f'n_step_action: {n_step_action.shape} {n_step_action}')
@@ -1804,7 +1830,7 @@ class DQNLearner(Learner):
                         self.intrinsic_reward.before_reset(instance_before_reset)
 
                 self.action_set = self.action_set.astype(int) # ensure action set is int so gets correctly converted to torch.LongTensor later
-                self.state = extract_state_tensors_from_ecole_obs(self.obs, self.action_set)
+                self.state,scores = extract_state_tensors_from_ecole_obs(self.obs, self.action_set)
                 self.episode_stats = defaultdict(lambda: 0)
                 # if type(self.agent_reward) == list:
                 if self.multiple_rewards:
@@ -1848,6 +1874,7 @@ class DQNLearner(Learner):
 
             # take step in environments
             self.obs, self.action_set, reward, self.done, info = self.env.step(action)
+            #print(f'obs: {self.obs}')
             self.episode_stats['num_steps'] += 1
             self.actor_step_counter += 1
             
@@ -1891,7 +1918,8 @@ class DQNLearner(Learner):
                 self.action_set = copy.deepcopy(self.prev_action_set)
 
             # save experience
-            self.state = extract_state_tensors_from_ecole_obs(self.obs, self.action_set)
+            self.state,scores = extract_state_tensors_from_ecole_obs(self.obs, self.action_set)
+            #print(f'self.state{self.state}\n scores{len(scores)}{scores}')
             self.episode_experiences.append(
                     {'prev_state': self.prev_state, 
                      'action': action, 
@@ -1902,6 +1930,7 @@ class DQNLearner(Learner):
                      'n_step_state': None,
                      'n': None,
                      'n_step_done': None,
+                     'scores':scores
                      }
                     )
 
@@ -2181,6 +2210,7 @@ class DQNLearner(Learner):
             for _ in range(int(num_experiences_added/self.steps_per_update)):
                 self.step_optimizer(use_cer=self.use_cer)
                 if self.epoch_counter % self.checkpoint_frequency == 0 and self.path_to_save is not None:
+                    print(f'start save_checkpoint, epoch_counter{self.epoch_counter},checkpoint_frequency{self.checkpoint_frequency},path_to_save{self.path_to_save}')
                     # self.save_checkpoint({'episodes_log': self.episodes_log, 'epochs_log': self.epochs_log}, use_sqlite_database=self.use_sqlite_database)
                     if self.save_thread is not None:
                         self.save_thread.join()

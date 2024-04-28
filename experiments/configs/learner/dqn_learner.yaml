@@ -13,7 +13,7 @@ final_epsilon_epoch: 5000
 max_steps: 1000000000000
 max_steps_agent: null
 
-buffer_min_length: 20000 # 20000 200
+buffer_min_length: 20000 # default 20000 ,change 200 to quick debug
 buffer_capacity: 100000 # 100000
 use_per: null
 use_cer: null

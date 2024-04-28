@@ -77,6 +77,8 @@ class SupervisedLearner(Learner):
             self.path_to_save = self.init_save_dir(path=self.path_to_save)
         
         self.epochs_log = self.init_epochs_log()
+        print("init over")
+
 
     def reset_optimizer(self, lr):
         self.optimizer = torch.optim.Adam(self.agent.parameters(), lr=lr)
@@ -107,6 +109,7 @@ class SupervisedLearner(Learner):
         return log_str
 
     def train(self, num_epochs):
+        print("train_begin")
         # save initial checkpoint of networks
         self.train_start = time.time()
         self.epoch_counter = 1
@@ -114,7 +117,7 @@ class SupervisedLearner(Learner):
             epoch_stats = defaultdict(lambda: 0)
             epoch_stats['train_logits'], epoch_stats['train_target'], epoch_stats['train_num_candidates'], = [], [], []
             epoch_stats['valid_logits'], epoch_stats['valid_target'], epoch_stats['valid_num_candidates'], = [], [], []
-
+            print("run_epoch")
             epoch_stats = self.run_epoch(data_loader=self.train_loader, optimizer=self.optimizer, epoch_stats=epoch_stats)
             epoch_stats = self.run_epoch(data_loader=self.valid_loader, optimizer=None, epoch_stats=epoch_stats)
 
@@ -156,7 +159,13 @@ class SupervisedLearner(Learner):
                 if type(logits) == list:
                     logits = torch.stack(logits).squeeze(0)
                 # print(f'logits: {logits.shape} {logits}')
-
+                print(f'logits: {logits.shape} {logits}')
+                print(f'constraint_features: {batch.constraint_features.shape} {batch.constraint_features}')
+                print(f'edge_index: {batch.edge_index.shape} {batch.edge_index}')
+                print(f'edge_attr: {batch.edge_attr.shape} {batch.edge_attr}')
+                print(f'variable_features: {batch.variable_features.shape} {batch.variable_features}')
+                import sys
+                #sys.exit()
                 # Index the results by the candidates, and split and pad them
                 logits = pad_tensor(logits[batch.candidates], batch.num_candidates)
                 # print(f'after index, split, and pad: logits: {logits.shape} {logits}')

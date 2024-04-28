@@ -14,6 +14,7 @@ import time
 import pandas as pd
 from IPython.display import display
 import ecole
+from retro_branching.utils import ExploreThenStrongBranch,PureStrongBranch
 
 class EcoleBranching(ecole.environment.Branching):
     def __init__(
@@ -176,6 +177,9 @@ class EcoleBranching(ecole.environment.Branching):
             observation_function = (NodeBipariteWith37VariableFeatures())
         elif observation_function == 'custom_var_features':
             observation_function = (NodeBipariteWithCustomFeatures())
+        elif observation_function == '43_var_and_sb_features':
+            #observation_function = (NodeBipariteWith43VariableFeatures(), ExploreThenStrongBranch(expert_probability=0.05))
+            observation_function = (NodeBipariteWith43VariableFeatures(), PureStrongBranch())
         else:
             raise Exception(f'Unrecognised observation_function {observation_function}')
 

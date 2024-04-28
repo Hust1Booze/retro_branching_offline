@@ -59,6 +59,11 @@ class BipartiteGCN(torch.nn.Module):
         super().__init__()
         self.device = device
 
+        if config is  None:
+            print("_____________________None")
+        else:
+            print(config)
+
         if config is not None:
             self.init_from_config(config)
         else:
