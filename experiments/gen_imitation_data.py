@@ -29,6 +29,7 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
+
 @ray.remote
 # def run_sampler(co_class, branching, nrows, ncols, max_steps=None, instance=None):
 def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=None):
@@ -88,19 +89,19 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
 
         action = action_set[scores[action_set].argmax()]
 
-
         observation, action_set, _, done, _ = env.step(action)
 
+        # change location so save can last done piece 
         if save_samples:
-            data = [node_observation, action, action_set, scores]
+            data = [node_observation, action, action_set, scores, done]
             data_to_save.append(data)
-
+            
         t += 1
         if max_steps is not None:
             if t >= max_steps:
                 # stop episode
                 break
-
+    
     return data_to_save
 
 def init_save_dir(path, name):
@@ -137,7 +138,7 @@ def run(cfg: DictConfig):
     path = init_save_dir(path, 'samples')
     print('Generating >={} samples in parallel on {} CPUs and saving to {}'.format(cfg.experiment.min_samples, NUM_CPUS, os.path.abspath(path)))
 
-    epoch_counter, sample_counter, loop_counter = 0, 0, 0
+    epoch_counter, sample_counter, loop_counter,epoch_save_counter = 0, 0, 0, 0
     ecole.seed(cfg.experiment.seed)
     # run epochs until gather enough samples
     orig_start = time.time()
@@ -165,14 +166,15 @@ def run(cfg: DictConfig):
         runs_data_to_save = ray.get(result_ids)
         end = time.time()
         print(f'Completed {NUM_CPUS*cfg.experiment.num_cpus_factor} parallel processes in {round(end-start, 3)} s.')
-
         # save collected samples
         for data_to_save in runs_data_to_save:
+            os.mkdir(f'{path}/epoch_{epoch_save_counter}')
             for data in data_to_save:
-                filename = f'{path}sample_{sample_counter}.pkl'
+                filename = f'{path}/epoch_{epoch_save_counter}/sample_{sample_counter}.pkl'
                 with gzip.open(filename, 'wb') as f:
                     pickle.dump(data, f)
                 sample_counter += 1
+            epoch_save_counter += 1
 
         loop_counter += 1
 
