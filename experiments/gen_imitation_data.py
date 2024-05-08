@@ -28,8 +28,6 @@ from omegaconf import DictConfig, OmegaConf
 import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
-import pdb
-
 
 @ray.remote
 # def run_sampler(co_class, branching, nrows, ncols, max_steps=None, instance=None):
@@ -90,11 +88,13 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
 
         action = action_set[scores[action_set].argmax()]
 
+
+        observation, action_set, _, done, _ = env.step(action)
+
         if save_samples:
             data = [node_observation, action, action_set, scores]
             data_to_save.append(data)
 
-        observation, action_set, _, done, _ = env.step(action)
         t += 1
         if max_steps is not None:
             if t >= max_steps:
@@ -126,7 +126,6 @@ def run(cfg: DictConfig):
     print(f'~'*80)
     print(f'Config:\n{OmegaConf.to_yaml(cfg)}')
     print(f'~'*80)
-    pdb.set_trace()
 
     path = cfg.experiment.path_to_save + f'/{cfg.experiment.branching}/{cfg.instances.co_class}/max_steps_{cfg.experiment.max_steps}/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/'
 
@@ -166,7 +165,7 @@ def run(cfg: DictConfig):
         runs_data_to_save = ray.get(result_ids)
         end = time.time()
         print(f'Completed {NUM_CPUS*cfg.experiment.num_cpus_factor} parallel processes in {round(end-start, 3)} s.')
-        pdb.set_trace()
+
         # save collected samples
         for data_to_save in runs_data_to_save:
             for data in data_to_save:
