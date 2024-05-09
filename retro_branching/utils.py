@@ -17,8 +17,8 @@ from collections import defaultdict
 
 import networkx as nx
 from networkx.drawing.nx_pydot import graphviz_layout
-
-
+from torch.utils.data import Dataset
+import glob
 
 def gen_co_name(co_class, co_class_kwargs):
     _str = f'{co_class}'
@@ -432,6 +432,124 @@ class GraphDataset(torch_geometric.data.Dataset):
 
 
 
+###################################################################################
+#use for dt_trainer load dataset
+class StateActionReturnDataset(Dataset):
+
+    def __init__(self, path, block_size):     
+
+        data, actions, returns, done_idxs, rtgs, timesteps = self.load_epochs(path)   
+        self.block_size = block_size
+        self.vocab_size = int(max(actions) + 1)
+        self.data = data
+        self.actions = actions
+        self.done_idxs = done_idxs
+        self.rtgs = rtgs
+        self.timesteps = timesteps
+    
+    def __len__(self):
+        return len(self.data) - self.block_size
+
+    def __getitem__(self, idx):
+        block_size = self.block_size // 3
+        done_idx = idx + block_size
+        for i in self.done_idxs:
+            if i > idx: # first done_idx greater than idx
+                done_idx = min(int(i), done_idx)
+                break
+        idx = done_idx - block_size
+
+        # change for scip 
+        ##states = torch.tensor(np.array(self.data[idx:done_idx]), dtype=torch.float32).reshape(block_size, -1) # (block_size, 4*84*84)
+        #states = states / 255.
+        states = []
+        for _data in self.data[idx:done_idx]:
+            sample_observation, sample_action, sample_action_set, sample_scores = _data
+            # We note on which variables we were allowed to branch, the scores as well as the choice 
+            # taken by strong branching (relative to the candidates)
+            candidates = torch.LongTensor(np.array(sample_action_set, dtype=np.int32))
+            try:
+                candidate_scores = torch.FloatTensor([sample_scores[j] for j in candidates])
+                score = []
+            except (TypeError, IndexError):
+                # only given one score and not in a list so not iterable
+                score = torch.FloatTensor([sample_scores])
+                candidate_scores = []
+            candidate_choice = torch.where(candidates == sample_action)[0][0]
+            graph = BipartiteNodeData(sample_observation.row_features, sample_observation.edge_features.indices, 
+                                sample_observation.edge_features.values, sample_observation.column_features,
+                                candidates, candidate_choice, candidate_scores, score)
+        
+            # We must tell pytorch geometric how many nodes there are, for indexing purposes
+            graph.num_nodes = sample_observation.row_features.shape[0]+sample_observation.column_features.shape[0]
+
+            states +=[graph]
+
+        actions = torch.tensor(self.actions[idx:done_idx], dtype=torch.long).unsqueeze(1) # (block_size, 1)
+        rtgs = torch.tensor(self.rtgs[idx:done_idx], dtype=torch.float32).unsqueeze(1)
+        timesteps = torch.tensor(self.timesteps[idx:idx+1], dtype=torch.int64).unsqueeze(1)
+
+        return states, actions, rtgs, timesteps
+    
+    def load_epochs(self, path):
+        epochs = self._create_dataset_scip(path)
+
+        obss=[]
+        actions=[]
+        done_idxs = []
+        returns = []
+        rtg = []
+        timesteps = []
+
+        for epoch in epochs:
+            epoch_len = len(epoch) 
+            left_epoch_len = epoch_len
+            for step in epoch:
+                sample_observation, sample_action, sample_action_set, sample_scores, done = step
+                obss += [step]
+                actions += [sample_action]
+                rtg +=[-left_epoch_len]
+                timesteps += [epoch_len - left_epoch_len]
+                left_epoch_len -= 1
+                
+            returns += [-epoch_len]
+            done_idxs += [len(obss)]
+            
+        
+        return obss, actions, returns, done_idxs, rtg, timesteps
+        
+
+    def _create_dataset_scip(self, path):
+        print(f'Loading imitation data from {path}...')
+        if not os.path.isdir(path):
+            raise Exception(f'Path {path} does not exist')
+        files = np.array(glob.glob(path+'/epoch*'))
+        files = np.sort(files)
+        print(f'Load {len(files)} epochs')
+        epochs = []
+        for file in files:
+            one_epoch = self._load_epoch(file)
+            epochs += [one_epoch]
+
+        return epochs
+            
+            
+    def _load_epoch(self, path):
+        examples = np.array(glob.glob(path+'/*.pkl'))
+        examples = np.sort(examples)
+        epoch =[]
+        done =  False
+        for example in examples:
+            with gzip.open(example, 'rb') as f:
+                sample = pickle.load(f)
+            epoch += [sample]
+            sample_observation, sample_action, sample_action_set, sample_scores, done = sample
+        
+        # if done is False:
+        #     print(f'path of {path} have error data')
+        #     return []
+
+        return epoch
 
 
 

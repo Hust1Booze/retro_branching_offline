@@ -2,3 +2,4 @@ from retro_branching.src.networks.multi_headed_separate_params_bipartite_gcn imp
 from retro_branching.src.networks.bipartite_gcn import BipartiteGCN
 from retro_branching.src.networks.bipartite_graph_convolution import BipartiteGraphConvolution
 from retro_branching.src.networks.bipartite_gcn_no_heads import BipartiteGCNNoHeads
+from retro_branching.src.networks.dt_model import GPTConfig,GPT1Config,GPT

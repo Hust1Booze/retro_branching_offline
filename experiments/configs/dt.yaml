@@ -1,0 +1,49 @@
+defaults:
+  - network: gasse_network_no_head
+instances:
+  co_class: 'set_covering'
+  co_class_kwargs:
+    'n_rows': 165
+    'n_cols': 230
+
+experiment:
+  seed: 0
+  device: 'cuda:0'
+  path_to_load_imitation_data: '/scratch/datasets/retro_branching/strong_branching'
+  path_to_save: '/scratch/datasets/retro_branching'
+  branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
+  max_steps: null # None 3
+  num_samples: 120000
+  num_epochs: 1000
+  
+  
+learner:
+  imitation_target: 'expert_actions' # 'expert_scores' 'expert_score' 'expert_actions' 'expert_bipartite_ranking'
+  loss_function: 'cross_entropy' # mean_squared_error cross_entropy jensen_shannon_distance kullback_leibler_divergence
+  lr: 0.0001
+  epoch_log_frequency: 1
+  checkpoint_frequency: 1
+  name: 'supervised_learner'
+  
+
+OtherConifg:
+  context_length: 10
+  data_path : '/home/liutf/code/retro_branching_offline/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_3'
+
+GPTConfig:
+  n_layer: 6
+  n_head: 8
+  n_embd: 128 
+  model_type: args.model_type
+
+TrainerConfig:
+  max_epochs: epochs
+  batch_size: args.batch_size
+  learning_rate: 6e-4
+  lr_decay: True 
+  warmup_tokens: 512*20 
+  final_tokens: 2*len(train_dataset)*args.context_length*3
+  num_workers: 4
+  seed: args.seed
+  model_type: args.model_type
+  game: args.game
