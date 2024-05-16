@@ -152,13 +152,13 @@ class SupervisedLearner(Learner):
         with torch.set_grad_enabled(optimizer is not None):
             for batch in data_loader:
                 batch = batch.to(self.agent.device)
-                # print(f'\nbatch: {batch}\n constraint_features: {batch.constraint_features.shape} {batch.constraint_features}\n variable_features: {batch.variable_features.shape} {batch.variable_features}')
+                print(f'\nbatch: {batch}\n constraint_features: {batch.constraint_features.shape} {batch.constraint_features}\n variable_features: {batch.variable_features.shape} {batch.variable_features}')
 
                 # Compute the logits (i.e. pre-softmax activations) according to the agent policy on the concatenated graphs
                 logits = self.agent(batch.constraint_features, batch.edge_index, batch.edge_attr, batch.variable_features)
                 if type(logits) == list:
                     logits = torch.stack(logits).squeeze(0)
-                # print(f'logits: {logits.shape} {logits}')
+                print(f'logits: {logits.shape} {logits}')
                 print(f'logits: {logits.shape} {logits}')
                 print(f'constraint_features: {batch.constraint_features.shape} {batch.constraint_features}')
                 print(f'edge_index: {batch.edge_index.shape} {batch.edge_index}')

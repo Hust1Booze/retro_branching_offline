@@ -89,13 +89,11 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
 
         action = action_set[scores[action_set].argmax()]
 
-        observation, action_set, _, done, _ = env.step(action)
-
-        # change location so save can last done piece 
         if save_samples:
-            data = [node_observation, action, action_set, scores, done]
+            data = [node_observation, action, action_set, scores]
             data_to_save.append(data)
-            
+
+        observation, action_set, _, done, _ = env.step(action)
         t += 1
         if max_steps is not None:
             if t >= max_steps:
@@ -166,15 +164,24 @@ def run(cfg: DictConfig):
         runs_data_to_save = ray.get(result_ids)
         end = time.time()
         print(f'Completed {NUM_CPUS*cfg.experiment.num_cpus_factor} parallel processes in {round(end-start, 3)} s.')
+
         # save collected samples
         for data_to_save in runs_data_to_save:
-            os.mkdir(f'{path}/epoch_{epoch_save_counter}')
             for data in data_to_save:
-                filename = f'{path}/epoch_{epoch_save_counter}/sample_{sample_counter}.pkl'
+                filename = f'{path}sample_{sample_counter}.pkl'
                 with gzip.open(filename, 'wb') as f:
                     pickle.dump(data, f)
                 sample_counter += 1
-            epoch_save_counter += 1
+
+        # save format for dt
+        # for data_to_save in runs_data_to_save:
+        #     os.mkdir(f'{path}/epoch_{epoch_save_counter}')
+        #     for data in data_to_save:
+        #         filename = f'{path}/epoch_{epoch_save_counter}/sample_{sample_counter}.pkl'
+        #         with gzip.open(filename, 'wb') as f:
+        #             pickle.dump(data, f)
+        #         sample_counter += 1
+        #     epoch_save_counter += 1
 
         loop_counter += 1
 

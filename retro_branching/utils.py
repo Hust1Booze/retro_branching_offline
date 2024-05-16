@@ -354,25 +354,39 @@ class BipartiteNodeData(torch_geometric.data.Data):
                  candidates=None, 
                  candidate_choice=None, 
                  candidate_scores=None, 
-                 score=None):
+                 score=None,
+                 candidate_nums = None,
+                 no_need_init = False):
         super().__init__()
-        if constraint_features is not None:
-            self.constraint_features = torch.FloatTensor(constraint_features)
-        if edge_indices is not None:
-            self.edge_index = torch.LongTensor(edge_indices.astype(np.int64))
-        if edge_features is not None:
-            self.edge_attr = torch.FloatTensor(edge_features).unsqueeze(1)
-        if variable_features is not None:
-            self.variable_features = torch.FloatTensor(variable_features)
-        if candidates is not None:
-            self.candidates = torch.LongTensor(candidates)
+
+        if no_need_init is False:
+            if constraint_features is not None:
+                self.constraint_features = torch.FloatTensor(constraint_features)
+            if edge_indices is not None:
+                self.edge_index = torch.LongTensor(edge_indices.astype(np.int64))
+            if edge_features is not None:
+                self.edge_attr = torch.FloatTensor(edge_features).unsqueeze(1)
+            if variable_features is not None:
+                self.variable_features = torch.FloatTensor(variable_features)
+            if candidates is not None:
+                self.candidates = torch.LongTensor(candidates)
+                self.num_candidates = len(candidates)
+            if candidate_choice is not None:
+                self.candidate_choices = torch.LongTensor(candidate_choice)
+            if candidate_scores is not None:
+                self.candidate_scores = torch.FloatTensor(candidate_scores)
+            if score is not None:
+                self.score = torch.FloatTensor(score)
+        else:
+            self.constraint_features = constraint_features
+            self.edge_index = edge_indices
+            self.edge_attr = edge_features
+            self.variable_features = variable_features
+            self.candidates = candidates
             self.num_candidates = len(candidates)
-        if candidate_choice is not None:
             self.candidate_choices = torch.LongTensor(candidate_choice)
-        if candidate_scores is not None:
-            self.candidate_scores = torch.FloatTensor(candidate_scores)
-        if score is not None:
-            self.score = torch.FloatTensor(score)
+            self.candidate_scores = candidate_scores
+            self.candidate_nums = torch.LongTensor(candidate_nums)
 
     def __inc__(self, key, value, *args, **kwargs):
         """
@@ -438,17 +452,20 @@ class StateActionReturnDataset(Dataset):
 
     def __init__(self, path, block_size):     
 
-        data, actions, returns, done_idxs, rtgs, timesteps = self.load_epochs(path)   
+        datas = self.load_epochs(path)   
+        obs, actions, action_set, scores, returns, done_idxs, rtgs, timesteps = datas   
         self.block_size = block_size
         self.vocab_size = int(max(actions) + 1)
-        self.data = data
+        self.obs = obs
         self.actions = actions
+        self.action_set = action_set
+        self.scores = scores
         self.done_idxs = done_idxs
         self.rtgs = rtgs
         self.timesteps = timesteps
     
     def __len__(self):
-        return len(self.data) - self.block_size
+        return len(self.obs) - self.block_size
 
     def __getitem__(self, idx):
         block_size = self.block_size // 3
@@ -463,8 +480,8 @@ class StateActionReturnDataset(Dataset):
         ##states = torch.tensor(np.array(self.data[idx:done_idx]), dtype=torch.float32).reshape(block_size, -1) # (block_size, 4*84*84)
         #states = states / 255.
         states = []
-        for _data in self.data[idx:done_idx]:
-            sample_observation, sample_action, sample_action_set, sample_scores = _data
+        for sample_observation,sample_action,sample_action_set,sample_scores in zip(self.obs[idx:done_idx],self.actions[idx:done_idx],self.action_set[idx:done_idx],self.scores[idx:done_idx]):
+
             # We note on which variables we were allowed to branch, the scores as well as the choice 
             # taken by strong branching (relative to the candidates)
             candidates = torch.LongTensor(np.array(sample_action_set, dtype=np.int32))
@@ -485,38 +502,147 @@ class StateActionReturnDataset(Dataset):
 
             states +=[graph]
 
+        # constraint_features = torch.stack([state.constraint_features for state in states])
+        # edge_index = torch.stack([state.edge_index for state in states])
+        # edge_attr = torch.stack([state.edge_attr for state in states])
+        # variable_features = torch.stack([state.variable_features for state in states])
+        
+        #states = [constraint_features,edge_index,edge_attr, variable_features]
         actions = torch.tensor(self.actions[idx:done_idx], dtype=torch.long).unsqueeze(1) # (block_size, 1)
         rtgs = torch.tensor(self.rtgs[idx:done_idx], dtype=torch.float32).unsqueeze(1)
         timesteps = torch.tensor(self.timesteps[idx:idx+1], dtype=torch.int64).unsqueeze(1)
 
+        
         return states, actions, rtgs, timesteps
+
+class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
+
+    def __init__(self, path, block_size):     
+        super().__init__(root=None, transform=None, pre_transform=None)
+
+        datas = self.load_epochs(path)   
+        obs, actions, action_set, scores, returns, done_idxs, rtgs, timesteps = datas   
+        self.block_size = block_size
+        self.vocab_size = int(max(actions) + 1)
+        self.obs = obs
+        self.actions = actions
+        self.action_set = action_set
+        self.scores = scores
+        self.done_idxs = done_idxs
+        self.rtgs = rtgs
+        self.timesteps = timesteps
+    
+    def len(self):
+        return len(self.obs) - self.block_size
+
+    def get(self, idx):
+        block_size = self.block_size // 3
+        done_idx = idx + block_size
+        for i in self.done_idxs:
+            if i > idx: # first done_idx greater than idx
+                done_idx = min(int(i), done_idx)
+                break
+        idx = done_idx - block_size
+
+        # change for scip 
+        ##states = torch.tensor(np.array(self.data[idx:done_idx]), dtype=torch.float32).reshape(block_size, -1) # (block_size, 4*84*84)
+        #states = states / 255.
+        states = []
+        for sample_observation,sample_action,sample_action_set,sample_scores in zip(self.obs[idx:done_idx],self.actions[idx:done_idx],self.action_set[idx:done_idx],self.scores[idx:done_idx]):
+
+            # We note on which variables we were allowed to branch, the scores as well as the choice 
+            # taken by strong branching (relative to the candidates)
+            candidates = torch.LongTensor(np.array(sample_action_set, dtype=np.int32))
+            try:
+                candidate_scores = torch.FloatTensor([sample_scores[j] for j in candidates])
+                score = []
+            except (TypeError, IndexError):
+                # only given one score and not in a list so not iterable
+                score = torch.FloatTensor([sample_scores])
+                candidate_scores = []
+            candidate_choice = torch.where(candidates == sample_action)[0][0]
+            graph = BipartiteNodeData(sample_observation.row_features, sample_observation.edge_features.indices, 
+                                sample_observation.edge_features.values, sample_observation.column_features,
+                                candidates, candidate_choice, candidate_scores, score)
+        
+            # We must tell pytorch geometric how many nodes there are, for indexing purposes
+            graph.num_nodes = sample_observation.row_features.shape[0]+sample_observation.column_features.shape[0]
+
+            graph.constraint_features_nums = graph.constraint_features.shape[0]
+            graph.edge_attr_nums = graph.edge_attr.shape[0]
+            graph.variable_features_nums = graph.variable_features.shape[0]
+
+            states +=[graph]
+
+        # constraint_features = torch.stack([state.constraint_features for state in states])
+        # edge_index = torch.stack([state.edge_index for state in states])
+        # edge_attr = torch.stack([state.edge_attr for state in states])
+        # variable_features = torch.stack([state.variable_features for state in states])
+
+        constraint_features = torch.cat([state.constraint_features for state in states],dim =0)
+        edge_index = torch.cat([state.edge_index for state in states],dim =1)
+        edge_attr = torch.cat([state.edge_attr for state in states],dim =0)
+        variable_features = torch.cat([state.variable_features for state in states],dim =0)
+        candidates = torch.cat([state.candidates for state in states],dim =0)
+        candidate_nums = [state.candidates.shape[0] for state in states]
+        candidate_choices =[state.candidate_choices.item() for state in states]
+        candidate_scores = torch.cat([state.candidate_scores for state in states],dim =0)
+        score = []
+
+        graphs = BipartiteNodeData(constraint_features, edge_index, 
+                    edge_attr,variable_features,
+                    candidates, candidate_choices, candidate_scores, score,candidate_nums = candidate_nums, no_need_init = True)
+        
+        graphs.num_nodes = constraint_features.shape[0]+variable_features.shape[0]
+
+        graphs.constraint_features_nums = torch.LongTensor([state.constraint_features.shape[0] for state in states])
+        graphs.edge_attr_nums = torch.LongTensor([state.edge_attr.shape[0] for state in states])
+        graphs.variable_features_nums = torch.LongTensor([state.variable_features.shape[0] for state in states])
+        
+
+        actions = torch.tensor(self.actions[idx:done_idx], dtype=torch.long).unsqueeze(1) # (block_size, 1)
+        rtgs = torch.tensor(self.rtgs[idx:done_idx], dtype=torch.float32).unsqueeze(1)
+        timesteps = torch.tensor(self.timesteps[idx:idx+1], dtype=torch.int64).unsqueeze(1)
+
+        return graphs, actions, rtgs, timesteps
     
     def load_epochs(self, path):
         epochs = self._create_dataset_scip(path)
 
-        obss=[]
-        actions=[]
+        obss = []
+        actions = []
+        action_set = []
+        scores = []
         done_idxs = []
         returns = []
         rtg = []
         timesteps = []
+
+        # debug
+        constraint_features_shapes = {}
 
         for epoch in epochs:
             epoch_len = len(epoch) 
             left_epoch_len = epoch_len
             for step in epoch:
                 sample_observation, sample_action, sample_action_set, sample_scores, done = step
-                obss += [step]
+                obss += [sample_observation]
                 actions += [sample_action]
+                action_set += [sample_action_set]
+                scores += [sample_scores]
                 rtg +=[-left_epoch_len]
                 timesteps += [epoch_len - left_epoch_len]
                 left_epoch_len -= 1
+
+                # debug
+                print(sample_observation.row_features.shape)
+                #constraint_features_shapes[sample_observation.row_features.shape] += 1
                 
             returns += [-epoch_len]
             done_idxs += [len(obss)]
             
         
-        return obss, actions, returns, done_idxs, rtg, timesteps
+        return obss, actions, action_set, scores, returns, done_idxs, rtg, timesteps
         
 
     def _create_dataset_scip(self, path):

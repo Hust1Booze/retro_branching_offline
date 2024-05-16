@@ -1,6 +1,6 @@
 from retro_branching.learners import SupervisedLearner
 from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads,GPTConfig ,GPT
-from retro_branching.utils import GraphDataset,StateActionReturnDataset, seed_stochastic_modules_globally, gen_co_name
+from retro_branching.utils import GraphDataset,StateActionReturnDataset, StateActionReturnDataset_Test,seed_stochastic_modules_globally, gen_co_name
 from retro_branching.loss_functions import CrossEntropy, JensenShannonDistance, KullbackLeiblerDivergence, BinaryCrossEntropyWithLogits, BinaryCrossEntropy, MeanSquaredError
 
 import torch_geometric 
@@ -39,12 +39,16 @@ def run(cfg: DictConfig):
     print('Initialised imitation agent.')
 
 
-    train_dataset = StateActionReturnDataset(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3)
+    #train_dataset = StateActionReturnDataset(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3)
+
+    train_dataset = StateActionReturnDataset_Test(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3)
+
+    
 
     # mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size,
     #                 n_layer=6, n_head=8, n_embd=128, model_type=args.model_type, max_timestep=max(timesteps))
     mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size,
-                n_layer=cfg.GPTConfig.n_layer,  n_head=cfg.GPTConfig.n_head, n_embd=cfg.GPTConfig.n_embd, model_type=cfg.GPTConfig.model_type, max_timestep=max(train_dataset.timesteps))
+                n_layer=cfg.GPTConfig.n_layer,  n_head=cfg.GPTConfig.n_head, n_embd=cfg.GPTConfig.n_embd, model_type=cfg.GPTConfig.model_type, max_timestep=max(train_dataset.timesteps),max_pad_size =cfg.TrainerConfig.max_pad_size)
     
     model = GPT(mconf,graph_net)
 
@@ -55,7 +59,7 @@ def run(cfg: DictConfig):
     #                     num_workers=4, seed=args.seed, model_type=args.model_type, game=args.game, max_timestep=max(timesteps))
 
     tconf = TrainerConfig(max_epochs=cfg.TrainerConfig.max_epochs, batch_size=cfg.TrainerConfig.batch_size, learning_rate=cfg.TrainerConfig.learning_rate,
-                        lr_decay=cfg.TrainerConfig.lr_decay, warmup_tokens=cfg.TrainerConfig.warmup_tokens, final_tokens=2*len(train_dataset)* cfg.OtherConifg.context_length*3,
+                        lr_decay=cfg.TrainerConfig.lr_decay, warmup_tokens=cfg.TrainerConfig.warmup_tokens, final_tokens=2*train_dataset.len()* cfg.OtherConifg.context_length*3, # len(train_dataset)
                         num_workers=cfg.TrainerConfig.num_workers, seed=cfg.TrainerConfig.seed, model_type=cfg.TrainerConfig.model_type, game=cfg.TrainerConfig.game, max_timestep=max(train_dataset.timesteps))
     trainer = Trainer(model, train_dataset, None, tconf)
 

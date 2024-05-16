@@ -18,7 +18,7 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
+@hydra.main(config_path='configs', config_name='il.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -52,7 +52,7 @@ def run(cfg: DictConfig):
 
     # init training and validaton data loaders
     train_data = GraphDataset(train_files)
-    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
+    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True) # defaule batch_size=32
     valid_data = GraphDataset(valid_files)
     valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False)
     print('Initialised training and validation data loaders.')

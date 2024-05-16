@@ -159,6 +159,7 @@ class GPT(nn.Module):
 
         # Use for graph states
         self.graph_net = graph_net
+        self.graph_encoder = nn.Sequential(nn.Linear(config.max_pad_size,config.n_embd))
         
     def get_block_size(self):
         return self.block_size
@@ -220,8 +221,17 @@ class GPT(nn.Module):
         optimizer = torch.optim.AdamW(optim_groups, lr=train_config.learning_rate, betas=train_config.betas)
         return optimizer
 
+    def pad_tensor(self,input_, pad_sizes, max_pad_size,pad_value=-1e8):
+        """
+        This utility function splits a tensor and pads each split to make them all the same size, then stacks them.
+        """
+        output = input_.split(pad_sizes.cpu().numpy().tolist())
+        output = torch.stack([F.pad(slice_, (0, max_pad_size - slice_.size(0)), 'constant', pad_value)
+                            for slice_ in output], dim=0)
+        return output
+
     # state, action, and return
-    def forward(self, states, actions, targets=None, rtgs=None, timesteps=None):
+    def forward(self, states, actions, targets=None, rtgs=None, timesteps=None, pad= None):
         # states: (batch, block_size, 4*84*84)
         # actions: (batch, block_size, 1)
         # targets: (batch, block_size, 1)
@@ -229,19 +239,25 @@ class GPT(nn.Module):
         # timesteps: (batch, 1, 1)
 
         #encode states use graph network
-        graph_embeddings = self.graph_net(states)
 
-        state_embeddings = self.state_encoder(states.reshape(-1, 4, 84, 84).type(torch.float32).contiguous()) # (batch * block_size, n_embd)
-        state_embeddings = state_embeddings.reshape(states.shape[0], states.shape[1], self.config.n_embd) # (batch, block_size, n_embd)
+        #graph_embeddings = self.graph_net(states.constraint_features, states.edge_index, states.edge_attr, states.variable_features)
+        graph_embeddings = self.graph_net(*states[:-1])
+
+        pad_graph_embeddings = self.pad_tensor(graph_embeddings,states[-1],max_pad_size=self.config.max_pad_size)
+        pad_graph_embeddings = self.graph_encoder(pad_graph_embeddings)
+        pad_graph_embeddings = pad_graph_embeddings.reshape(-1,int(self.config.block_size/3) ,self.config.n_embd)
+
+        #state_embeddings = self.state_encoder(states.reshape(-1, 4, 84, 84).type(torch.float32).contiguous()) # (batch * block_size, n_embd)
+        #state_embeddings = state_embeddings.reshape(states.shape[0], states.shape[1], self.config.n_embd) # (batch, block_size, n_embd)
         
         if actions is not None and self.model_type == 'reward_conditioned': 
             rtg_embeddings = self.ret_emb(rtgs.type(torch.float32))
             action_embeddings = self.action_embeddings(actions.type(torch.long).squeeze(-1)) # (batch, block_size, n_embd)
 
-            token_embeddings = torch.zeros((states.shape[0], states.shape[1]*3 - int(targets is None), self.config.n_embd), dtype=torch.float32, device=state_embeddings.device)
+            token_embeddings = torch.zeros((pad_graph_embeddings.shape[0], pad_graph_embeddings.shape[1]*3 - int(targets is None), self.config.n_embd), dtype=torch.float32, device=pad_graph_embeddings.device)
             token_embeddings[:,::3,:] = rtg_embeddings
-            token_embeddings[:,1::3,:] = state_embeddings
-            token_embeddings[:,2::3,:] = action_embeddings[:,-states.shape[1] + int(targets is None):,:]
+            token_embeddings[:,1::3,:] = pad_graph_embeddings
+            token_embeddings[:,2::3,:] = action_embeddings[:,-pad_graph_embeddings.shape[1] + int(targets is None):,:]
         elif actions is None and self.model_type == 'reward_conditioned': # only happens at very first timestep of evaluation
             rtg_embeddings = self.ret_emb(rtgs.type(torch.float32))
 
@@ -259,7 +275,7 @@ class GPT(nn.Module):
         else:
             raise NotImplementedError()
 
-        batch_size = states.shape[0]
+        batch_size = pad_graph_embeddings.shape[0]
         all_global_pos_emb = torch.repeat_interleave(self.global_pos_emb, batch_size, dim=0) # batch_size, traj_length, n_embd
 
         position_embeddings = torch.gather(all_global_pos_emb, 1, torch.repeat_interleave(timesteps, self.config.n_embd, dim=-1)) + self.pos_emb[:, :token_embeddings.shape[1], :]

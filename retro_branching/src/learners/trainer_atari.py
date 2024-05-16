@@ -32,6 +32,7 @@ import random
 import cv2
 import torch
 from PIL import Image
+import torch_geometric 
 
 class TrainerConfig:
     # optimization parameters
@@ -82,16 +83,17 @@ class Trainer:
             is_train = split == 'train'
             model.train(is_train)
             data = self.train_dataset if is_train else self.test_dataset
-            loader = DataLoader(data, shuffle=True, pin_memory=True,
-                                batch_size=config.batch_size,
-                                num_workers=config.num_workers)
+            # loader = DataLoader(data, shuffle=True, pin_memory=True,
+            #                     batch_size=config.batch_size,
+            #                     num_workers=config.num_workers)
+            loader = torch_geometric.data.DataLoader(data, batch_size=32, shuffle=True) # defaule batch_size=32
 
             losses = []
-            pbar = tqdm(enumerate(loader), total=len(loader)) if is_train else enumerate(loader)
-            for it, (x, y, r, t) in pbar:
 
-                # place data on the correct device
-                x = x.to(self.device)
+            it =0
+            for batch in loader:
+                x,y,r,t = batch
+                x = [x.constraint_features.to(self.device), x.edge_index.to(self.device), x.edge_attr.to(self.device), x.variable_features.to(self.device),x.variable_features_nums.to(self.device)]
                 y = y.to(self.device)
                 r = r.to(self.device)
                 t = t.to(self.device)
@@ -128,7 +130,8 @@ class Trainer:
                         lr = config.learning_rate
 
                     # report progress
-                    pbar.set_description(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
+                    print(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
+                    it += 1
 
             if not is_train:
                 test_loss = float(np.mean(losses))
@@ -165,6 +168,8 @@ class Trainer:
                     eval_return = self.get_returns(14000)
                 elif self.config.game == 'Pong':
                     eval_return = self.get_returns(20)
+                elif self.config.game == 'scip':
+                    eval_return = self.get_returns(30)
                 else:
                     raise NotImplementedError()
             else:

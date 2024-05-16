@@ -4,14 +4,14 @@ defaults:
 instances:
   co_class: 'set_covering'
   co_class_kwargs:
-    'n_rows': 165
-    'n_cols': 230
+    'n_rows': 500
+    'n_cols': 1000
 
 experiment:
   seed: 0
-  device: 'cuda:1'
-  path_to_load_imitation_data: '/scratch/datasets/retro_branching/strong_branching'
-  path_to_save: '/scratch/datasets/retro_branching'
+  device: 'cpu' #'cuda:0'
+  path_to_load_imitation_data: '/home/liutf/code/retro_branching_offline/'
+  path_to_save: '../scratch/datasets/retro_branching'
   branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null # None 3
   num_samples: 120000

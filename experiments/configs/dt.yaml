@@ -34,16 +34,17 @@ GPTConfig:
   n_layer: 6
   n_head: 8
   n_embd: 128 
-  model_type: args.model_type
+  model_type: reward_conditioned
 
 TrainerConfig:
-  max_epochs: epochs
-  batch_size: args.batch_size
+  max_epochs: 5
+  batch_size: 8 # default 128
   learning_rate: 6e-4
   lr_decay: True 
-  warmup_tokens: 512*20 
+  warmup_tokens: 10240 #512*20 
   final_tokens: 2*len(train_dataset)*args.context_length*3
   num_workers: 4
-  seed: args.seed
-  model_type: args.model_type
-  game: args.game
+  seed: 123
+  model_type: reward_conditioned
+  game: scip
+  max_pad_size: 1000
