@@ -5,9 +5,9 @@ instances:
     'n_cols': 230
 
 experiment:
-  seed: 0
+  seed: 0  
   path_to_save: '/home/liutf/code/retro_branching_offline/explore_then_strong_branch'
   num_cpus_factor: 20
-  branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
-  min_samples: 1260
+  branching: 'pure_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
+  min_samples: 126000
   max_steps: null # None 3

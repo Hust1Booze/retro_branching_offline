@@ -144,9 +144,6 @@ class GPT(nn.Module):
         self.apply(self._init_weights)
 
 
-        logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
-
-
         self.state_encoder = nn.Sequential(nn.Conv2d(4, 32, 8, stride=4, padding=0), nn.ReLU(),
                                  nn.Conv2d(32, 64, 4, stride=2, padding=0), nn.ReLU(),
                                  nn.Conv2d(64, 64, 3, stride=1, padding=0), nn.ReLU(),
@@ -160,6 +157,8 @@ class GPT(nn.Module):
         # Use for graph states
         self.graph_net = graph_net
         self.graph_encoder = nn.Sequential(nn.Linear(config.max_pad_size,config.n_embd))
+
+        logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
         
     def get_block_size(self):
         return self.block_size
@@ -241,11 +240,12 @@ class GPT(nn.Module):
         #encode states use graph network
 
         #graph_embeddings = self.graph_net(states.constraint_features, states.edge_index, states.edge_attr, states.variable_features)
-        graph_embeddings = self.graph_net(*states[:-1])
-
-        pad_graph_embeddings = self.pad_tensor(graph_embeddings,states[-1],max_pad_size=self.config.max_pad_size)
+        graph_embeddings = self.graph_net(*states[:4])
+        candidates = states[-2]
+        candidates_num = states[-1]
+        pad_graph_embeddings = self.pad_tensor(graph_embeddings,states[-3],max_pad_size=self.config.max_pad_size)
         pad_graph_embeddings = self.graph_encoder(pad_graph_embeddings)
-        pad_graph_embeddings = pad_graph_embeddings.reshape(-1,int(self.config.block_size/3) ,self.config.n_embd)
+        pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
 
         #state_embeddings = self.state_encoder(states.reshape(-1, 4, 84, 84).type(torch.float32).contiguous()) # (batch * block_size, n_embd)
         #state_embeddings = state_embeddings.reshape(states.shape[0], states.shape[1], self.config.n_embd) # (batch, block_size, n_embd)
@@ -261,9 +261,9 @@ class GPT(nn.Module):
         elif actions is None and self.model_type == 'reward_conditioned': # only happens at very first timestep of evaluation
             rtg_embeddings = self.ret_emb(rtgs.type(torch.float32))
 
-            token_embeddings = torch.zeros((states.shape[0], states.shape[1]*2, self.config.n_embd), dtype=torch.float32, device=state_embeddings.device)
+            token_embeddings = torch.zeros((pad_graph_embeddings.shape[0], pad_graph_embeddings.shape[1]*2, self.config.n_embd), dtype=torch.float32, device=pad_graph_embeddings.device)
             token_embeddings[:,::2,:] = rtg_embeddings # really just [:,0,:]
-            token_embeddings[:,1::2,:] = state_embeddings # really just [:,1,:]
+            token_embeddings[:,1::2,:] = pad_graph_embeddings # really just [:,1,:]
         elif actions is not None and self.model_type == 'naive':
             action_embeddings = self.action_embeddings(actions.type(torch.long).squeeze(-1)) # (batch, block_size, n_embd)
 
@@ -295,11 +295,26 @@ class GPT(nn.Module):
             logits = logits # for completeness
         else:
             raise NotImplementedError()
+        
+        # mask those actions not in candidates 
+        candidates = candidates.split(candidates_num.cpu().numpy().tolist())
+        mask =[]
+        for candidate in candidates:
+            row = torch.zeros(logits.size(-1))
+            mask.append(row.scatter_(0,candidate.cpu(),1))
+        mask = torch.stack(mask,dim=0).to(logits.device)
 
         # if we are given some desired targets also calculate the loss
         loss = None
-        if targets is not None:
-            loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1))
+        
+
+        if targets is not None:   
+            logits = logits.reshape(-1, logits.size(-1)).masked_fill(mask==0, -math.inf)
+            loss = F.cross_entropy(logits, targets.reshape(-1))
+        else:
+            shape = logits.shape
+            logits = logits.reshape(-1, logits.size(-1)).masked_fill(mask==0, -math.inf)
+            logits = logits.reshape(shape)
 
         return logits, loss
 

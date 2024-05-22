@@ -1,6 +1,7 @@
 #!/bin/bash
 echo "bash test"
 root_dir=$(pwd)
+root_dir='/home/liutf/datas'
 echo "root_dir:"${root_dir}
 
 # 使用date命令生成带日期时间的字符串

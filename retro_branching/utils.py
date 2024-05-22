@@ -383,10 +383,12 @@ class BipartiteNodeData(torch_geometric.data.Data):
             self.edge_attr = edge_features
             self.variable_features = variable_features
             self.candidates = candidates
-            self.num_candidates = len(candidates)
-            self.candidate_choices = torch.LongTensor(candidate_choice)
-            self.candidate_scores = candidate_scores
-            self.candidate_nums = torch.LongTensor(candidate_nums)
+            # use this for not increment indices
+            self.candidates_back = candidates
+            #self.candidates_num = len(candidates)
+            self.candidates_choices = torch.LongTensor(candidate_choice)
+            self.candidates_scores = candidate_scores
+            self.candidates_num = torch.LongTensor(candidate_nums)
 
     def __inc__(self, key, value, *args, **kwargs):
         """
@@ -544,6 +546,8 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
                 break
         idx = done_idx - block_size
 
+        if idx<0: 
+            return self.get(random.randint(self.done_idxs[0],self.block_size)) # this line for idx<0,beacuse first done_indx<block_size
         # change for scip 
         ##states = torch.tensor(np.array(self.data[idx:done_idx]), dtype=torch.float32).reshape(block_size, -1) # (block_size, 4*84*84)
         #states = states / 255.
@@ -625,7 +629,8 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
             epoch_len = len(epoch) 
             left_epoch_len = epoch_len
             for step in epoch:
-                sample_observation, sample_action, sample_action_set, sample_scores, done = step
+                #sample_observation, sample_action, sample_action_set, sample_scores, done = step
+                sample_observation, sample_action, sample_action_set, sample_scores = step
                 obss += [sample_observation]
                 actions += [sample_action]
                 action_set += [sample_action_set]
@@ -635,7 +640,7 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
                 left_epoch_len -= 1
 
                 # debug
-                print(sample_observation.row_features.shape)
+                #print(sample_observation.row_features.shape)
                 #constraint_features_shapes[sample_observation.row_features.shape] += 1
                 
             returns += [-epoch_len]
@@ -651,11 +656,15 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
             raise Exception(f'Path {path} does not exist')
         files = np.array(glob.glob(path+'/epoch*'))
         files = np.sort(files)
-        print(f'Load {len(files)} epochs')
+        #print(f'Load {len(files)} epochs')
+        print(f'Load 3000 epochs') # mem cant load all dataset,
         epochs = []
+        i=0
         for file in files:
             one_epoch = self._load_epoch(file)
             epochs += [one_epoch]
+            i+=1
+            if i>=3000:break
 
         return epochs
             
@@ -669,7 +678,8 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
             with gzip.open(example, 'rb') as f:
                 sample = pickle.load(f)
             epoch += [sample]
-            sample_observation, sample_action, sample_action_set, sample_scores, done = sample
+            #sample_observation, sample_action, sample_action_set, sample_scores, done = sample
+            sample_observation, sample_action, sample_action_set, sample_scores = sample
         
         # if done is False:
         #     print(f'path of {path} have error data')
