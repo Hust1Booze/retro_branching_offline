@@ -26,15 +26,15 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
+@hydra.main(config_path='configs', config_name='validator.yaml')
 def run(cfg: DictConfig):
      
     # initialise the agent
     agents = {}
     if cfg.experiment.agent_name not in set(['pseudocost_branching', 'strong_branching', 'scip_branching']):
         # is an ML agent
-        path = cfg.experiment.path_to_load_agent
-        #path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+        #path = cfg.experiment.path_to_load_agent
+        path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
         config = path + 'config.json'
         print('config :'+ config)
         agent = Agent(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)

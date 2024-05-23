@@ -39,6 +39,8 @@ import torch_geometric
 import time
 from collections import defaultdict, deque
 import glob,ecole
+import gzip
+import pickle
 
 class TrainerConfig:
     # optimization parameters
@@ -72,14 +74,24 @@ class Trainer:
         self.device = 'cpu'
         if torch.cuda.is_available():
             self.device = torch.cuda.current_device()
-            self.model = torch.nn.DataParallel(self.model).to(self.device)
+            self.model = self.model.to(self.device)
+            # no need muti GPUS
+            #self.model = torch.nn.DataParallel(self.model).to(self.device)
+
+    def load_checkpoint(self,model_state_dict_path):
+        state_dict = torch.load(model_state_dict_path)
+        self.model.load_state_dict(state_dict)
 
     def save_checkpoint(self):
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
-        path = self.config.ckpt_path + 'dt_'+ time.strftime('%Y-%m-%d-%H-%M-%S') + '.pt'
-        logger.info("saving %s", path)
+        path = self.config.ckpt_path +'dt_models/'+ 'dt_'+ time.strftime('%Y-%m-%d-%H-%M-%S') + '.pt'
+        logger.info("saving checkpoint %s", path)
         torch.save(raw_model.state_dict(), path)
+
+    def eval_with_check_point(self,check_point_path,ret):
+        self.load_checkpoint(check_point_path)
+        self.get_returns_for_scip(ret)
 
     def train(self):
         model, config = self.model, self.config
@@ -256,7 +268,7 @@ class Trainer:
         metrics = ['num_nodes', 'solving_time', 'lp_iterations']
         num_episod = 10
 
-        validator = ValidatorForScip(agent=self.model.module,
+        validator = ValidatorForScip(agent=self.model,
                                             env=env,
                                             instances=instances,
                                             metrics=metrics,
@@ -271,17 +283,10 @@ class Trainer:
                                             threshold_agent=None,
                                             threshold_env=None,
                                             episode_log_frequency=1,
-                                            path_to_save=None,
+                                            path_to_save=self.config.ckpt_path ,
                                             overwrite=None,
                                             checkpoint_frequency=10)
-        steps = []
-        start = time.time()
-        for i in range(100):
-            steps += [validator.run_episode(ret)]
-        
-        end = time.time()
-        print(f'validator cost time :{end-start}')
-        print(f'steps :{steps}')
+        validator.start_val(ret=-30,instance_nums = 10)
 
     
 class Env():
@@ -444,8 +449,8 @@ class ValidatorForScip():
         self.name = name
 
         # init directory to save data
-        if self.path_to_save is not None:
-            self.path_to_save = self.init_save_dir(path=self.path_to_save)
+        # if self.path_to_save is not None:
+        #     self.path_to_save = self.init_save_dir(path=self.path_to_save)
         
         # ensure all envs have same seed for consistent resetting of instances
         env.seed(self.seed)
@@ -462,6 +467,8 @@ class ValidatorForScip():
         #     # agent does not have device parameter, assume is e.g. strong branching and is on CPU
         #     self.device = 'cpu'
         self.device = 'cuda:0'
+
+        self.val_result = {}
 
     def reset_env(self, env, max_attempts=10000):
 
@@ -526,6 +533,25 @@ class ValidatorForScip():
                     obs.edge_features.values, obs.column_features,
                     candidates = action_set)
         return graph
+    def start_val(self,ret,instance_nums):
+        steps = []
+        start = time.time()
+        for i in range(instance_nums):
+            result = self.run_episode(ret)
+            print(f'instance:{i},num_nodes:{abs(np.sum(result))}')
+            self.val_result[i] = result
+        
+        end = time.time()
+        print(f'validator cost time :{end-start}')
+        self.save()
+
+    def save(self, log_name='episodes_log', path='.'):
+        # save episodes log
+        filename = self.path_to_save +'dt_eval/'+'val_result_'+ time.strftime('%Y-%m-%d-%H-%M-%S') + '.pkl'
+        with gzip.open(filename, 'wb') as f:
+            pickle.dump(self.val_result, f)
+        print(f'save val result at {filename}')
+
     def run_episode(self,ret):
         max_steps = 300
         env = self.env
@@ -554,6 +580,7 @@ class ValidatorForScip():
                 print('error! action not in action_set')
             
             actions = []
+            metrics = []
             steps =0
             for t in range(self.max_steps):
 
@@ -561,6 +588,7 @@ class ValidatorForScip():
                 actions += [sampled_action]
                 obs, action_set, reward, done, info = env.step(action)
                 steps +=1
+                metrics += [reward['num_nodes']]
                 if done or steps>max_steps:
                     break
 
@@ -579,7 +607,7 @@ class ValidatorForScip():
                     timesteps=(min(steps, 10000) * torch.ones((1, 1, 1), dtype=torch.int64).to(self.device)))
                 if sampled_action.item() not in action_set:
                     print('error! action not in action_set')
-            return steps
+            return metrics
             #print(f'steps: {steps}')
 
 

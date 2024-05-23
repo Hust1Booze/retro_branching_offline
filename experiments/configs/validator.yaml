@@ -1,5 +1,5 @@
 environment:
-  observation_function: '43_var_features'
+  observation_function: 'default' #'43_var_features'
   information_function: 'default'
   reward_function: 'default'
   scip_params: 'gasse_2019'
@@ -7,8 +7,8 @@ environment:
 instances:
   co_class: 'set_covering'
   co_class_kwargs:
-    n_rows: 165
-    n_cols: 230
+    n_rows: 500
+    n_cols: 1000
   #co_class: 'combinatorial_auction'
   #co_class_kwargs:
     #n_items: 10
@@ -21,8 +21,8 @@ validator:
   overwrite: True
   
 experiment:
-  agent_name: 'retro' # pseudocost_branching strong_branching scip_branching
-  path_to_load_agent: '/scratch/datasets/retro_branching/instances/retro_branching_paper_validation_agents'
-  path_to_load_instances: '/scratch/datasets/retro_branching/instances/retro_branching_paper_validation_instances'
+  agent_name: 'il' # pseudocost_branching strong_branching scip_branching
+  path_to_load_agent: '/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_agents'
+  path_to_load_instances: '/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_instances'
   path_to_save: '/scratch/datasets/retro_branching/instances/retro_branching_paper_validation_agents'
-  device: 'cpu' # cuda:0 cpu
+  device: 'cuda:0' # cuda:0 cpu

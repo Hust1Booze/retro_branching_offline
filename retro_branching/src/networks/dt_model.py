@@ -39,9 +39,10 @@ class GPTConfig:
     resid_pdrop = 0.1
     attn_pdrop = 0.1
 
-    def __init__(self, vocab_size, block_size, **kwargs):
+    def __init__(self, vocab_size, block_size,graph_config, **kwargs):
         self.vocab_size = vocab_size
         self.block_size = block_size
+        self.graph_config = graph_config
         for k,v in kwargs.items():
             setattr(self, k, v)
 
@@ -120,7 +121,7 @@ class Block(nn.Module):
 class GPT(nn.Module):
     """  the full GPT language model, with a context size of block_size """
 
-    def __init__(self, config, graph_net):
+    def __init__(self, config):
         super().__init__()
 
         self.config = config
@@ -155,7 +156,7 @@ class GPT(nn.Module):
         nn.init.normal_(self.action_embeddings[0].weight, mean=0.0, std=0.02)
 
         # Use for graph states
-        self.graph_net = graph_net
+        self.graph_net = BipartiteGCNNoHeads(device='cuda:0',**config.graph_config)
         self.graph_encoder = nn.Sequential(nn.Linear(config.max_pad_size,config.n_embd))
 
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))

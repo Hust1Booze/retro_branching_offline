@@ -519,9 +519,10 @@ class StateActionReturnDataset(Dataset):
 
 class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
 
-    def __init__(self, path, block_size):     
+    def __init__(self, path, block_size,max_epochs):     
         super().__init__(root=None, transform=None, pre_transform=None)
 
+        self.max_epochs = max_epochs
         datas = self.load_epochs(path)   
         obs, actions, action_set, scores, returns, done_idxs, rtgs, timesteps = datas   
         self.block_size = block_size
@@ -533,6 +534,7 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
         self.done_idxs = done_idxs
         self.rtgs = rtgs
         self.timesteps = timesteps
+
     
     def len(self):
         return len(self.obs) - self.block_size
@@ -656,15 +658,14 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
             raise Exception(f'Path {path} does not exist')
         files = np.array(glob.glob(path+'/epoch*'))
         files = np.sort(files)
-        #print(f'Load {len(files)} epochs')
-        print(f'Load 3000 epochs') # mem cant load all dataset,
+        print(f'There are {len(files)} epochs, and dataset will load {self.max_epochs} epochs')
         epochs = []
         i=0
         for file in files:
             one_epoch = self._load_epoch(file)
             epochs += [one_epoch]
             i+=1
-            if i>=3000:break
+            if i>=self.max_epochs:break
 
         return epochs
             

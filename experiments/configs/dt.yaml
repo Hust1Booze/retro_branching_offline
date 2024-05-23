@@ -39,7 +39,7 @@ GPTConfig:
   vocab_size: 1000
 
 TrainerConfig:
-  max_epochs: 5
+  max_epochs: 10
   batch_size: 16 # default 128
   learning_rate: 6e-4
   lr_decay: True 
@@ -50,7 +50,7 @@ TrainerConfig:
   model_type: reward_conditioned
   game: scip
   max_pad_size: 1000
-  ckpt_path: '/home/liutf/code/retro_branching_offline/dt_models/'
+  ckpt_path: '/home/liutf/code/retro_branching_offline/dt_out/'
 
 ValidConfig:
   threshold_difficulty: null

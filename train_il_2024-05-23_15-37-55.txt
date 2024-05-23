@@ -1,0 +1,180 @@
+
+
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Config:
+network:
+  emb_size: 64
+  num_rounds: 1
+  cons_nfeats: 5
+  edge_nfeats: 1
+  var_nfeats: 19
+  aggregator: add
+  activation: null
+  num_heads: 1
+  head_depth: 2
+  head_aggreagtor: add
+  linear_weight_init: normal
+  linear_bias_init: zeros
+  layernorm_weight_init: null
+  layernorm_bias_init: null
+  include_edge_features: true
+  name: gnn
+instances:
+  co_class: set_covering
+  co_class_kwargs:
+    n_rows: 500
+    n_cols: 1000
+experiment:
+  seed: 0
+  device: cuda:0
+  path_to_load_imitation_data: /home/liutf/datas/
+  path_to_save: ../scratch/datasets/retro_branching
+  branching: pure_strong_branch
+  max_steps: null
+  num_samples: 120000
+  num_epochs: 1000
+learner:
+  imitation_target: expert_actions
+  loss_function: cross_entropy
+  lr: 0.0001
+  epoch_log_frequency: 1
+  checkpoint_frequency: 1
+  name: supervised_learner
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+_____________________None
+Initialised imitation agent.
+Loading imitation data from /home/liutf/datas//pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_1/...
+Initialised training and validation data loaders.
+init over
+Initialised learner with params defaultdict(<class 'list'>, {'agent_name': 'gnn', 'agent_device': 'cuda:0', 'lr': 0.0001, 'learner_name': 'supervised_learner'}). Will save to ../scratch/datasets/retro_branching/supervised_learner/gnn/gnn_9/
+Training imitation agent...
+Training imitation2 agent...
+train_begin
+run_epoch
+step: 50 loss_mean: 4.272260780334473
+step: 100 loss_mean: 4.254642601013184
+step: 150 loss_mean: 4.131135425567627
+step: 200 loss_mean: 3.8147476625442507
+step: 250 loss_mean: 3.7536311388015746
+step: 300 loss_mean: 3.7490941190719607
+step: 350 loss_mean: 3.649398560523987
+step: 400 loss_mean: 3.495246968269348
+step: 450 loss_mean: 3.473398232460022
+step: 500 loss_mean: 3.3794478130340577
+step: 550 loss_mean: 3.443541808128357
+step: 600 loss_mean: 3.4498296070098875
+step: 650 loss_mean: 3.450096368789673
+step: 700 loss_mean: 3.4245041751861574
+step: 750 loss_mean: 3.3667150497436524
+step: 800 loss_mean: 3.4560737371444703
+step: 850 loss_mean: 3.3943193483352663
+step: 900 loss_mean: 3.3918614196777344
+step: 950 loss_mean: 3.3937152814865112
+step: 1000 loss_mean: 3.455680365562439
+step: 1050 loss_mean: 3.4308119297027586
+step: 1100 loss_mean: 3.4256920337677004
+step: 1150 loss_mean: 3.3793471956253054
+step: 1200 loss_mean: 3.341557059288025
+step: 1250 loss_mean: 3.3393788719177246
+step: 1300 loss_mean: 3.476155734062195
+step: 1350 loss_mean: 3.2547408628463743
+step: 1400 loss_mean: 3.357229084968567
+step: 1450 loss_mean: 3.370803050994873
+step: 1500 loss_mean: 3.4082869338989257
+step: 1550 loss_mean: 3.2928018951416016
+step: 1600 loss_mean: 3.4186983585357664
+step: 1650 loss_mean: 3.377739200592041
+step: 1700 loss_mean: 3.3512578773498536
+step: 1750 loss_mean: 3.3542900037765504
+step: 1800 loss_mean: 3.3719119358062746
+step: 1850 loss_mean: 3.406388463973999
+step: 1900 loss_mean: 3.304770464897156
+step: 1950 loss_mean: 3.365397849082947
+step: 2000 loss_mean: 3.41078556060791
+step: 2050 loss_mean: 3.3347561502456666
+step: 2100 loss_mean: 3.2956907844543455
+step: 2150 loss_mean: 3.418132781982422
+step: 2200 loss_mean: 3.350276618003845
+step: 2250 loss_mean: 3.290925726890564
+step: 2300 loss_mean: 3.429145712852478
+step: 2350 loss_mean: 3.41761745929718
+step: 2400 loss_mean: 3.360709004402161
+step: 2450 loss_mean: 3.417955994606018
+step: 2500 loss_mean: 3.346346764564514
+step: 2550 loss_mean: 3.3035989809036255
+step: 2600 loss_mean: 3.4018960571289063
+step: 2650 loss_mean: 3.3427662897109984
+step: 2700 loss_mean: 3.384634504318237
+step: 2750 loss_mean: 3.4152117586135864
+step: 2800 loss_mean: 3.4631950855255127
+step: 2850 loss_mean: 3.339233064651489
+step: 2900 loss_mean: 3.3132748794555664
+step: 2950 loss_mean: 3.3639692211151124
+step: 3000 loss_mean: 3.3597494077682497
+step: 3050 loss_mean: 3.3723565769195556
+step: 3100 loss_mean: 3.3331515693664553
+step: 3150 loss_mean: 3.3593157052993776
+step: 3200 loss_mean: 3.355137848854065
+step: 3250 loss_mean: 3.3871586990356444
+step: 3300 loss_mean: 3.380319743156433
+step: 3350 loss_mean: 3.333417491912842
+step: 3400 loss_mean: 3.3414267921447753
+step: 3450 loss_mean: 3.354217472076416
+step: 3500 loss_mean: 3.42306893825531
+step: 3550 loss_mean: 3.3444449043273927
+step: 3600 loss_mean: 3.3378369665145873
+step: 3650 loss_mean: 3.3186757135391236
+step: 3700 loss_mean: 3.365133590698242
+step: 3750 loss_mean: 3.3580757093429567
+step: 3800 loss_mean: 3.309879112243652
+step: 3850 loss_mean: 3.35784761428833
+step: 3900 loss_mean: 3.367468457221985
+step: 3950 loss_mean: 3.374161195755005
+step: 4000 loss_mean: 3.372937445640564
+step: 4050 loss_mean: 3.348877429962158
+step: 4100 loss_mean: 3.2915913343429564
+step: 4150 loss_mean: 3.274451484680176
+step: 4200 loss_mean: 3.4452788972854616
+step: 4250 loss_mean: 3.3199509525299074
+step: 4300 loss_mean: 3.37058970451355
+step: 4350 loss_mean: 3.3792956590652468
+step: 4400 loss_mean: 3.3474123334884642
+step: 4450 loss_mean: 3.3464649391174315
+step: 4500 loss_mean: 3.354644260406494
+step: 4550 loss_mean: 3.328095235824585
+step: 4600 loss_mean: 3.39273720741272
+step: 4650 loss_mean: 3.3354766607284545
+step: 4700 loss_mean: 3.3724350118637085
+step: 4750 loss_mean: 3.326478066444397
+step: 4800 loss_mean: 3.367177324295044
+step: 4850 loss_mean: 3.4393633031845092
+step: 4900 loss_mean: 3.2946075963974
+step: 4950 loss_mean: 3.2853263998031617
+step: 5000 loss_mean: 3.3284009981155394
+step: 5050 loss_mean: 3.329568476676941
+step: 5100 loss_mean: 3.2438414525985717
+step: 5150 loss_mean: 3.334488253593445
+step: 5200 loss_mean: 3.277487006187439
+step: 5250 loss_mean: 3.3843658351898194
+step: 5300 loss_mean: 3.3591697072982787
+step: 5350 loss_mean: 3.3036659574508667
+step: 5400 loss_mean: 3.297233157157898
+step: 5450 loss_mean: 3.3220033931732176
+step: 5500 loss_mean: 3.3380639123916627
+step: 5550 loss_mean: 3.315342354774475
+step: 5600 loss_mean: 3.2929832124710083
+step: 5650 loss_mean: 3.310834174156189
+step: 5700 loss_mean: 3.316249437332153
+step: 5750 loss_mean: 3.3512490463256834
+step: 5800 loss_mean: 3.309515190124512
+step: 5850 loss_mean: 3.3008245038986206
+step: 5900 loss_mean: 3.251825942993164
+step: 5950 loss_mean: 3.26417667388916
+step: 6000 loss_mean: 3.2577356052398683
+step: 6050 loss_mean: 3.312318706512451
+step: 6100 loss_mean: 3.3005368757247924
+step: 6150 loss_mean: 3.3037295818328856
+step: 6200 loss_mean: 3.306057858467102

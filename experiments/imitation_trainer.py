@@ -44,7 +44,7 @@ def run(cfg: DictConfig):
     print(f'Loading imitation data from {path}...')
     if not os.path.isdir(path):
         raise Exception(f'Path {path} does not exist')
-    files = np.array(glob.glob(path+'*.pkl'))
+    files = np.array(glob.glob(path+'/*/*.pkl'))
     sample_files = files[:cfg.experiment.num_samples]
     files = [] # clear memory
     train_files = sample_files[:int(0.83*len(sample_files))]
@@ -52,7 +52,7 @@ def run(cfg: DictConfig):
 
     # init training and validaton data loaders
     train_data = GraphDataset(train_files)
-    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True) # defaule batch_size=32
+    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=16, shuffle=True) # defaule batch_size=32
     valid_data = GraphDataset(valid_files)
     valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False)
     print('Initialised training and validation data loaders.')

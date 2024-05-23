@@ -150,21 +150,23 @@ class SupervisedLearner(Learner):
         saved_logits_and_target = False # track if saved for first batch of epoch
         start = time.time()
         with torch.set_grad_enabled(optimizer is not None):
+            step = 0
+            loss_record =[]
             for batch in data_loader:
                 batch = batch.to(self.agent.device)
-                print(f'\nbatch: {batch}\n constraint_features: {batch.constraint_features.shape} {batch.constraint_features}\n variable_features: {batch.variable_features.shape} {batch.variable_features}')
+                #print(f'\nbatch: {batch}\n constraint_features: {batch.constraint_features.shape} {batch.constraint_features}\n variable_features: {batch.variable_features.shape} {batch.variable_features}')
 
                 # Compute the logits (i.e. pre-softmax activations) according to the agent policy on the concatenated graphs
                 logits = self.agent(batch.constraint_features, batch.edge_index, batch.edge_attr, batch.variable_features)
                 if type(logits) == list:
                     logits = torch.stack(logits).squeeze(0)
-                print(f'logits: {logits.shape} {logits}')
-                print(f'logits: {logits.shape} {logits}')
-                print(f'constraint_features: {batch.constraint_features.shape} {batch.constraint_features}')
-                print(f'edge_index: {batch.edge_index.shape} {batch.edge_index}')
-                print(f'edge_attr: {batch.edge_attr.shape} {batch.edge_attr}')
-                print(f'variable_features: {batch.variable_features.shape} {batch.variable_features}')
-                import sys
+                # print(f'logits: {logits.shape} {logits}')
+                # print(f'logits: {logits.shape} {logits}')
+                # print(f'constraint_features: {batch.constraint_features.shape} {batch.constraint_features}')
+                # print(f'edge_index: {batch.edge_index.shape} {batch.edge_index}')
+                # print(f'edge_attr: {batch.edge_attr.shape} {batch.edge_attr}')
+                # print(f'variable_features: {batch.variable_features.shape} {batch.variable_features}')
+                # import sys
                 #sys.exit()
                 # Index the results by the candidates, and split and pad them
                 logits = pad_tensor(logits[batch.candidates], batch.num_candidates)
@@ -189,7 +191,10 @@ class SupervisedLearner(Learner):
                 else:
                     raise Exception('Unrecognised imitation_target {}.'.format(self.imitation_target))
                 loss = self.loss_function.extract(logits, imitation_target)
-                # print(f'loss: {loss}')
+                loss_record +=[loss.item()]
+                step +=1
+                if step%50 ==0:
+                    print(f'step: {step} loss_mean: {np.mean(loss_record[-50:])}')
 
                 if self.save_logits_and_target:
                     if not saved_logits_and_target:
