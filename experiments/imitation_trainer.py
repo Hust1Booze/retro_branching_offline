@@ -52,9 +52,9 @@ def run(cfg: DictConfig):
 
     # init training and validaton data loaders
     train_data = GraphDataset(train_files)
-    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=16, shuffle=True) # defaule batch_size=32
+    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True) # defaule batch_size=32
     valid_data = GraphDataset(valid_files)
-    valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False)
+    valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=32, shuffle=False)
     print('Initialised training and validation data loaders.')
 
     # init learner

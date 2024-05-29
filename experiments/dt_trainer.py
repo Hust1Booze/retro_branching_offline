@@ -35,7 +35,7 @@ def run(cfg: DictConfig):
     #train_dataset = StateActionReturnDataset(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3)
 
     # limit by memory, about can load 3000+ epochs, load 10 epochs for test code 
-    train_dataset = StateActionReturnDataset_Test(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3,max_epochs=10)
+    train_dataset = StateActionReturnDataset_Test(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3,cfg.OtherConifg.max_epochs)
 
     
 
@@ -55,7 +55,7 @@ def run(cfg: DictConfig):
     tconf = TrainerConfig(max_epochs=cfg.TrainerConfig.max_epochs, batch_size=cfg.TrainerConfig.batch_size, learning_rate=cfg.TrainerConfig.learning_rate,
                         lr_decay=cfg.TrainerConfig.lr_decay, warmup_tokens=cfg.TrainerConfig.warmup_tokens, final_tokens=2*train_dataset.len()* cfg.OtherConifg.context_length*3, # len(train_dataset)
                         num_workers=cfg.TrainerConfig.num_workers, seed=cfg.TrainerConfig.seed, model_type=cfg.TrainerConfig.model_type, 
-                        game=cfg.TrainerConfig.game, max_timestep=max(train_dataset.timesteps),ckpt_path = cfg.TrainerConfig.ckpt_path,
+                        game=cfg.TrainerConfig.game, max_timestep=max(train_dataset.timesteps),ckpt_path = cfg.TrainerConfig.ckpt_path,need_get_return = cfg.TrainerConfig.need_get_return,
                         observation_function=cfg.ValidConfig.observation_function,information_function=cfg.ValidConfig.information_function,
                         reward_function=cfg.ValidConfig.reward_function,scip_params=cfg.ValidConfig.scip_params)
     

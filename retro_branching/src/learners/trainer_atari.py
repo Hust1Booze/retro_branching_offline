@@ -148,9 +148,9 @@ class Trainer:
                             param_group['lr'] = lr
                     else:
                         lr = config.learning_rate
-
+                    if it%100 ==0:
                     # report progress
-                    print(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
+                        print(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
                     it += 1
 
             if not is_train:
@@ -158,10 +158,11 @@ class Trainer:
                 logger.info("test loss: %f", test_loss)
                 return test_loss
 
-        # best_loss = float('inf')
-        
-        best_return = -float('inf')
+            mean_loss = float(np.mean(losses))
+            logger.info("epoch mean loss: %f", mean_loss)
 
+        # best_loss = float('inf')
+        best_return = -float('inf')
         self.tokens = 0 # counter used for learning rate decay
 
         for epoch in range(config.max_epochs):
@@ -192,7 +193,8 @@ class Trainer:
                 elif self.config.game == 'Pong':
                     eval_return = self.get_returns(20)
                 elif self.config.game == 'scip':
-                    eval_return = self.get_returns_for_scip(-30)
+                    if self.config.need_get_return:
+                        eval_return = self.get_returns_for_scip(-30)
                     
                 else:
                     raise NotImplementedError()

@@ -165,8 +165,8 @@ class BipartiteGCNNoHeads(torch.nn.Module):
             variable_features = self.conv_c_to_v(constraint_features, edge_indices, edge_features, variable_features)
 
         # A final MLP on the variable
-        output = self.output_module(variable_features).clone().squeeze(-1) # must clone to avoid in place operation gradient error for some reason?
-
+        #output = self.output_module(variable_features).clone().squeeze(-1) # must clone to avoid in place operation gradient error for some reason?
+        output = variable_features.clone()
         return output
 
     def create_config(self):

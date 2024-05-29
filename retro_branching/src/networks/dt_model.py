@@ -226,7 +226,10 @@ class GPT(nn.Module):
         This utility function splits a tensor and pads each split to make them all the same size, then stacks them.
         """
         output = input_.split(pad_sizes.cpu().numpy().tolist())
-        output = torch.stack([F.pad(slice_, (0, max_pad_size - slice_.size(0)), 'constant', pad_value)
+        # output = torch.stack([F.pad(slice_, (0, max_pad_size - slice_.size(0)), 'constant', pad_value)
+        #                     for slice_ in output], dim=0)
+        
+        output = torch.stack([torch.cat([slice_,torch.full((max_pad_size - slice_.size(0),slice_.size(1)),-1e8).to('cuda:0')],dim=0)
                             for slice_ in output], dim=0)
         return output
 
@@ -239,13 +242,42 @@ class GPT(nn.Module):
         # timesteps: (batch, 1, 1)
 
         #encode states use graph network
-
-        #graph_embeddings = self.graph_net(states.constraint_features, states.edge_index, states.edge_attr, states.variable_features)
         graph_embeddings = self.graph_net(*states[:4])
         candidates = states[-2]
         candidates_num = states[-1]
-        pad_graph_embeddings = self.pad_tensor(graph_embeddings,states[-3],max_pad_size=self.config.max_pad_size)
-        pad_graph_embeddings = self.graph_encoder(pad_graph_embeddings)
+        variable_features_nums = states[-3]
+        pad_graph_embeddings = self.pad_tensor(graph_embeddings,variable_features_nums,max_pad_size=self.config.max_pad_size)
+
+
+        # this code use to jump transformer just output logits for debug 
+        jump_trans = False
+        if jump_trans is True:
+            logits = pad_graph_embeddings
+            # mask those actions not in candidates 
+            candidates = candidates.split(candidates_num.cpu().numpy().tolist())
+            mask =[]
+            for candidate in candidates:
+                row = torch.zeros(logits.size(-1))
+                mask.append(row.scatter_(0,candidate.cpu(),1))
+            mask = torch.stack(mask,dim=0).to(logits.device)
+
+            # if we are given some desired targets also calculate the loss
+            loss = None
+            
+
+            if targets is not None:   
+                logits = logits.reshape(-1, logits.size(-1)).masked_fill(mask==0, -math.inf)
+                loss = F.cross_entropy(logits, targets.reshape(-1))
+            else:
+                shape = logits.shape
+                logits = logits.reshape(-1, logits.size(-1)).masked_fill(mask==0, -math.inf)
+                logits = logits.reshape(shape)
+
+            return logits, loss
+        #pad_graph_embeddings = self.graph_encoder(pad_graph_embeddings)
+        #pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
+
+        pad_graph_embeddings = pad_graph_embeddings.sum(dim=2)
         pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
 
         #state_embeddings = self.state_encoder(states.reshape(-1, 4, 84, 84).type(torch.float32).contiguous()) # (batch * block_size, n_embd)

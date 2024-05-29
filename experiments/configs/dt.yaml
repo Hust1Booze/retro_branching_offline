@@ -27,20 +27,21 @@ learner:
   
 
 OtherConifg:
-  context_length: 10
-  data_path : '/home/liutf/datas/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_1/'
+  context_length: 1 #10
+  data_path : '/home/liutf/datas/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_165_n_cols_230/samples/samples_1/'
+  #'/home/liutf/datas/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_1/'
   #'/home/liutf/code/retro_branching_offline/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_3'
-
+  max_epochs: 100000 # can load 3200 epochs limit by mem. use 32 for fast load data and debug
 GPTConfig:
-  n_layer: 6 # default 6
-  n_head: 8
-  n_embd: 128 
+  n_layer: 1 # default 6
+  n_head: 1  # default 8
+  n_embd: 256 
   model_type: reward_conditioned
-  vocab_size: 1000
+  vocab_size: 230
 
 TrainerConfig:
-  max_epochs: 10
-  batch_size: 16 # default 128
+  max_epochs: 1000
+  batch_size: 64 # default 128
   learning_rate: 6e-4
   lr_decay: True 
   warmup_tokens: 10240 #512*20 
@@ -49,12 +50,13 @@ TrainerConfig:
   seed: 123
   model_type: reward_conditioned
   game: scip
-  max_pad_size: 1000
+  max_pad_size: 230
   ckpt_path: '/home/liutf/code/retro_branching_offline/dt_out/'
+  need_get_return: False
 
 ValidConfig:
   threshold_difficulty: null
-  max_steps: 1000000000000
+  max_steps: 10000000000
   max_steps_agent: null
   overwrite: True
   observation_function: 'default'

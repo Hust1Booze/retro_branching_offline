@@ -4,8 +4,8 @@ defaults:
 instances:
   co_class: 'set_covering'
   co_class_kwargs:
-    'n_rows': 500
-    'n_cols': 1000
+    'n_rows': 165
+    'n_cols': 230
 
 experiment:
   seed: 0
