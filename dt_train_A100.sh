@@ -4,7 +4,7 @@
 #SBATCH -J retro_branch_dt
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=2
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --qos=a100
 
 source activate retro_branch_dt
