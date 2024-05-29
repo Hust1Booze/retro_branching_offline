@@ -97,6 +97,60 @@ class CausalSelfAttention(nn.Module):
         # output projection
         y = self.resid_drop(self.proj(y))
         return y
+    
+class StateAttention(nn.Module):
+    """
+    A vanilla multi-head masked self-attention layer with a projection at the end.
+    It is possible to use torch.nn.MultiheadAttention here but I am including an
+    explicit implementation here to show that there is nothing too scary here.
+    """
+
+    def __init__(self, config):
+        super().__init__()
+        assert config.n_embd % config.n_head == 0
+        # key, query, value projections for all heads
+        self.key = nn.Linear(config.n_embd, config.n_embd)
+        self.query = nn.Linear(config.n_embd, config.n_embd)
+        self.value = nn.Linear(config.n_embd, config.n_embd)
+        # regularization
+        self.attn_drop = nn.Dropout(config.attn_pdrop)
+        self.resid_drop = nn.Dropout(config.resid_pdrop)
+        # output projection
+        self.proj = nn.Linear(config.n_embd, config.n_embd)
+
+        self.n_head = config.n_head
+    
+    def make_mask(self,max,num):
+        # 创建一个 n*n 大小的单位矩阵
+        mask = torch.ones(max,max)
+        mask[:-num,num:]=0
+        return mask
+    def forward(self, x, var_nums,layer_past=None):
+        B, T, C = x.size()
+
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+
+        # make maskes that just mask pad zeros
+        mask = torch.stack([self.make_mask(att.shape[-1],num) for num in var_nums])
+        mask =torch.unsqueeze(mask, dim=1).to(att.device)
+        att = att.masked_fill(mask == 0, float('-inf'))
+        att = F.softmax(att, dim=-1)
+        att = self.attn_drop(att)
+        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+
+        # output projection
+        y = self.resid_drop(self.proj(y))
+
+        #choose last token of result as output
+        select_res = y[torch.arange(y.size(0)), var_nums - 1]
+        return select_res
 
 class Block(nn.Module):
     """ an unassuming Transformer block """
@@ -156,8 +210,10 @@ class GPT(nn.Module):
         nn.init.normal_(self.action_embeddings[0].weight, mean=0.0, std=0.02)
 
         # Use for graph states
-        self.graph_net = BipartiteGCNNoHeads(device='cuda:0',**config.graph_config)
+        self.graph_net = BipartiteGCNNoHeads(device='cuda:0',**config.graph_net)
         self.graph_encoder = nn.Sequential(nn.Linear(config.max_pad_size,config.n_embd))
+
+        self.graph_attn = StateAttention(config)
 
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
         
@@ -246,12 +302,26 @@ class GPT(nn.Module):
         candidates = states[-2]
         candidates_num = states[-1]
         variable_features_nums = states[-3]
-        pad_graph_embeddings = self.pad_tensor(graph_embeddings,variable_features_nums,max_pad_size=self.config.max_pad_size)
+        
+
+        if self.config.use_atten:
+            # or use attention to aggregate state information and use last token
+            pad_graph_embeddings = self.pad_tensor(graph_embeddings,variable_features_nums,max_pad_size=self.config.max_pad_size,pad_value=0)
+            # not sure the logic is correct in graph_attn,especiall in create mask and select output result 
+            atten_embeddings = self.graph_attn(pad_graph_embeddings,variable_features_nums)
+            # reshape tensor to keep shape same
+            pad_graph_embeddings = torch.unsqueeze(atten_embeddings,dim=1)
+        else:
+            # this code for pad different n (size of variablle) to same size(max_pad_size) etc,994->1000
+            pad_graph_embeddings = self.pad_tensor(graph_embeddings,variable_features_nums,max_pad_size=self.config.max_pad_size)
+            pad_graph_embeddings = pad_graph_embeddings.sum(dim=2)
+            pad_graph_embeddings = self.graph_encoder(pad_graph_embeddings)
+            pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
+
 
 
         # this code use to jump transformer just output logits for debug 
-        jump_trans = False
-        if jump_trans is True:
+        if self.config.jump_attn is True:
             logits = pad_graph_embeddings
             # mask those actions not in candidates 
             candidates = candidates.split(candidates_num.cpu().numpy().tolist())
@@ -274,14 +344,7 @@ class GPT(nn.Module):
                 logits = logits.reshape(shape)
 
             return logits, loss
-        #pad_graph_embeddings = self.graph_encoder(pad_graph_embeddings)
-        #pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
 
-        pad_graph_embeddings = pad_graph_embeddings.sum(dim=2)
-        pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
-
-        #state_embeddings = self.state_encoder(states.reshape(-1, 4, 84, 84).type(torch.float32).contiguous()) # (batch * block_size, n_embd)
-        #state_embeddings = state_embeddings.reshape(states.shape[0], states.shape[1], self.config.n_embd) # (batch, block_size, n_embd)
         
         if actions is not None and self.model_type == 'reward_conditioned': 
             rtg_embeddings = self.ret_emb(rtgs.type(torch.float32))

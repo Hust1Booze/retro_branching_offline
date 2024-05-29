@@ -32,34 +32,38 @@ def run(cfg: DictConfig):
     print(f'Config:\n{OmegaConf.to_yaml(cfg)}')
     print(f'~'*80)
 
-    #train_dataset = StateActionReturnDataset(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3)
+
+    # have to add this to reload cfg, if not do this cant merge,dont know why
+    cfg = OmegaConf.create(OmegaConf.to_yaml(cfg))
 
     # limit by memory, about can load 3000+ epochs, load 10 epochs for test code 
-    train_dataset = StateActionReturnDataset_Test(cfg.OtherConifg.data_path, cfg.OtherConifg.context_length*3,cfg.OtherConifg.max_epochs)
+    train_dataset = StateActionReturnDataset_Test(cfg.DataConfig.data_path, cfg.DataConfig.context_length*3,cfg.DataConfig.max_epochs)
 
-    
+    # those configs need load dynamically
+    extra_cfg = OmegaConf.create({
+        "GPTConfig": {
+            "block_size": cfg.DataConfig.context_length*3,
+            "max_timestep": max(train_dataset.timesteps),
+            "max_pad_size": cfg.TrainerConfig.max_pad_size,
+            "graph_net": cfg.network
+        },
+        "TrainerConfig":{
 
-    # mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size,
-    #                 n_layer=6, n_head=8, n_embd=128, model_type=args.model_type, max_timestep=max(timesteps))
-    mconf = GPTConfig(cfg.GPTConfig.vocab_size, train_dataset.block_size, cfg.network,
-                n_layer=cfg.GPTConfig.n_layer,  n_head=cfg.GPTConfig.n_head, n_embd=cfg.GPTConfig.n_embd, model_type=cfg.GPTConfig.model_type, max_timestep=max(train_dataset.timesteps),max_pad_size =cfg.TrainerConfig.max_pad_size)
-    
-    model = GPT(mconf)
+            "final_tokens": 2*train_dataset.len()* cfg.DataConfig.context_length*3,
+            "max_timestep": max(train_dataset.timesteps),
+            "observation_function": cfg.ValidConfig.observation_function,
+            "information_function": cfg.ValidConfig.information_function,
+            "reward_function": cfg.ValidConfig.reward_function,
+            "scip_params": cfg.ValidConfig.scip_params
+        }
+    })
 
-    # initialize a trainer instance and kick off training
-    # epochs = args.epochs
-    # tconf = TrainerConfig(max_epochs=epochs, batch_size=args.batch_size, learning_rate=6e-4,
-    #                     lr_decay=True, warmup_tokens=512*20, final_tokens=2*len(train_dataset)*args.context_length*3,
-    #                     num_workers=4, seed=args.seed, model_type=args.model_type, game=args.game, max_timestep=max(timesteps))
+    # 合并配置
+    merged_cfg = OmegaConf.merge(cfg, extra_cfg)
+  
+    model = GPT(merged_cfg.GPTConfig)
 
-    tconf = TrainerConfig(max_epochs=cfg.TrainerConfig.max_epochs, batch_size=cfg.TrainerConfig.batch_size, learning_rate=cfg.TrainerConfig.learning_rate,
-                        lr_decay=cfg.TrainerConfig.lr_decay, warmup_tokens=cfg.TrainerConfig.warmup_tokens, final_tokens=2*train_dataset.len()* cfg.OtherConifg.context_length*3, # len(train_dataset)
-                        num_workers=cfg.TrainerConfig.num_workers, seed=cfg.TrainerConfig.seed, model_type=cfg.TrainerConfig.model_type, 
-                        game=cfg.TrainerConfig.game, max_timestep=max(train_dataset.timesteps),ckpt_path = cfg.TrainerConfig.ckpt_path,need_get_return = cfg.TrainerConfig.need_get_return,
-                        observation_function=cfg.ValidConfig.observation_function,information_function=cfg.ValidConfig.information_function,
-                        reward_function=cfg.ValidConfig.reward_function,scip_params=cfg.ValidConfig.scip_params)
-    
-    trainer = Trainer(model, train_dataset, None, tconf)
+    trainer = Trainer(model, train_dataset, None, merged_cfg.TrainerConfig)
 
     trainer.train()
 
