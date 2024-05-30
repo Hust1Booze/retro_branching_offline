@@ -311,6 +311,7 @@ class GPT(nn.Module):
             atten_embeddings = self.graph_attn(pad_graph_embeddings,variable_features_nums)
             # reshape tensor to keep shape same
             pad_graph_embeddings = torch.unsqueeze(atten_embeddings,dim=1)
+            pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
         else:
             # this code for pad different n (size of variablle) to same size(max_pad_size) etc,994->1000
             pad_graph_embeddings = self.pad_tensor(graph_embeddings,variable_features_nums,max_pad_size=self.config.max_pad_size)

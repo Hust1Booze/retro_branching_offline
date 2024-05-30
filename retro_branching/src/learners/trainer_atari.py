@@ -109,7 +109,6 @@ class Trainer:
 
             losses = []
 
-            it =0
             for batch in loader:
                 x,y,r,t = batch
                 x = [x.constraint_features.to(self.device), x.edge_index.to(self.device), x.edge_attr.to(self.device), x.variable_features.to(self.device),
@@ -148,10 +147,7 @@ class Trainer:
                             param_group['lr'] = lr
                     else:
                         lr = config.learning_rate
-                    if it%100 ==0:
-                    # report progress
-                        print(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
-                    it += 1
+
 
             if not is_train:
                 test_loss = float(np.mean(losses))
@@ -159,7 +155,7 @@ class Trainer:
                 return test_loss
 
             mean_loss = float(np.mean(losses))
-            logger.info("epoch mean loss: %f", mean_loss)
+            logger.info(f"epoch: {epoch+1}, mean loss: {mean_loss}")
 
         # best_loss = float('inf')
         best_return = -float('inf')
