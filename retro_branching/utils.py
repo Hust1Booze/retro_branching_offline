@@ -519,11 +519,9 @@ class StateActionReturnDataset(Dataset):
 
 class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
 
-    def __init__(self, path, block_size,max_epochs):     
+    def __init__(self, datas, block_size):     
         super().__init__(root=None, transform=None, pre_transform=None)
 
-        self.max_epochs = max_epochs
-        datas = self.load_epochs(path)   
         obs, actions, action_set, scores, returns, done_idxs, rtgs, timesteps = datas   
         self.block_size = block_size
         self.vocab_size = int(max(actions) + 1)
@@ -612,9 +610,22 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
 
         return graphs, actions, rtgs, timesteps
     
-    def load_epochs(self, path):
-        epochs = self._create_dataset_scip(path)
+class Data_loader():
+    
+    def __init__(self, path, max_epochs):     
 
+        self.data_path = path
+        self.max_epochs = max_epochs
+
+        epochs  = self._create_dataset_scip()
+        train_epochs = epochs[:int(0.83*len(epochs))]
+        test_epochs = epochs[int(0.83*len(epochs)):]
+
+        self.train_data = self.load_epochs(train_epochs)
+        self.test_data = self.load_epochs(test_epochs)
+        
+    def load_epochs(self, epochs):
+        
         obss = []
         actions = []
         action_set = []
@@ -652,11 +663,11 @@ class StateActionReturnDataset_Test(torch_geometric.data.Dataset):
         return obss, actions, action_set, scores, returns, done_idxs, rtg, timesteps
         
 
-    def _create_dataset_scip(self, path):
-        print(f'Loading imitation data from {path}...')
-        if not os.path.isdir(path):
-            raise Exception(f'Path {path} does not exist')
-        files = np.array(glob.glob(path+'/epoch*'))
+    def _create_dataset_scip(self):
+        print(f'Loading imitation data from {self.data_path}...')
+        if not os.path.isdir(self.data_path):
+            raise Exception(f'Path {self.data_path} does not exist')
+        files = np.array(glob.glob(self.data_path+'/epoch*'))
         files = np.sort(files)
         print(f'There are {len(files)} epochs, and dataset will load {self.max_epochs} epochs')
         epochs = []

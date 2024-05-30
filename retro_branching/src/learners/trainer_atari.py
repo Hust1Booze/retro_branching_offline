@@ -153,9 +153,10 @@ class Trainer:
                 test_loss = float(np.mean(losses))
                 logger.info("test loss: %f", test_loss)
                 return test_loss
-
-            mean_loss = float(np.mean(losses))
-            logger.info(f"epoch: {epoch+1}, mean loss: {mean_loss}")
+            else:
+                train_loss = float(np.mean(losses))
+                logger.info("epoch mean loss: %f", train_loss)
+                return train_loss
 
         # best_loss = float('inf')
         best_return = -float('inf')
@@ -164,8 +165,8 @@ class Trainer:
         for epoch in range(config.max_epochs):
 
             run_epoch('train', epoch_num=epoch)
-            # if self.test_dataset is not None:
-            #     test_loss = run_epoch('test')
+            if self.test_dataset is not None:
+                test_loss = run_epoch('test')
 
             # # supports early stopping based on the test loss, or just save always if no test set is provided
             # good_model = self.test_dataset is None or test_loss < best_loss

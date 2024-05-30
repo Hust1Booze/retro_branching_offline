@@ -1,6 +1,6 @@
 from retro_branching.learners import SupervisedLearner
 from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads,GPTConfig ,GPT
-from retro_branching.utils import GraphDataset,StateActionReturnDataset, StateActionReturnDataset_Test,seed_stochastic_modules_globally, gen_co_name
+from retro_branching.utils import GraphDataset,StateActionReturnDataset, StateActionReturnDataset_Test,Data_loader,seed_stochastic_modules_globally, gen_co_name
 from retro_branching.loss_functions import CrossEntropy, JensenShannonDistance, KullbackLeiblerDivergence, BinaryCrossEntropyWithLogits, BinaryCrossEntropy, MeanSquaredError
 
 import torch_geometric 
@@ -37,7 +37,10 @@ def run(cfg: DictConfig):
     cfg = OmegaConf.create(OmegaConf.to_yaml(cfg))
 
     # limit by memory, about can load 3000+ epochs, load 10 epochs for test code 
-    train_dataset = StateActionReturnDataset_Test(cfg.DataConfig.data_path, cfg.DataConfig.context_length*3,cfg.DataConfig.max_epochs)
+    loader = Data_loader(cfg.DataConfig.data_path,cfg.DataConfig.max_epochs)
+
+    train_dataset = StateActionReturnDataset_Test(loader.train_data,cfg.DataConfig.context_length*3)
+    test_dataset = StateActionReturnDataset_Test(loader.test_data,cfg.DataConfig.context_length*3)
 
     # those configs need load dynamically
     extra_cfg = OmegaConf.create({
@@ -63,7 +66,7 @@ def run(cfg: DictConfig):
   
     model = GPT(merged_cfg.GPTConfig)
 
-    trainer = Trainer(model, train_dataset, None, merged_cfg.TrainerConfig)
+    trainer = Trainer(model, train_dataset, test_dataset, merged_cfg.TrainerConfig)
 
     trainer.train()
 
