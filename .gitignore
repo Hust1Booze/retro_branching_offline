@@ -155,3 +155,5 @@ docker_usage.txt
 logs/
 outputs/
 experiments/configs/dt.yaml
+dt_out/
+.gitignore
