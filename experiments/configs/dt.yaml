@@ -31,19 +31,23 @@ DataConfig:
   data_path : '/home/liutf/datas/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_165_n_cols_230/samples/samples_1/'
   #'/home/liutf/datas/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_1/'
   #'/home/liutf/code/retro_branching_offline/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_3'
-  max_epochs: 1000 # when laod can load 3200 epochs limit by mem. use 32 for fast load data and debug
+  max_epochs: 100000000 # when laod can load 3200 epochs limit by mem. use 32 for fast load data and debug
 
 GPTConfig:
   embd_pdrop: 0.1
   resid_pdrop: 0.1
   attn_pdrop: 0.1
   n_layer: 1 # default 6
-  n_head: 1  # default 8
+  n_head: 4  # default 8
   n_embd: 256 
   model_type: reward_conditioned
   vocab_size: 230
-  jump_attn: False
+  jump_dt: True
   use_atten: True
+  # this two para use for variable_num-->1
+  num_heads: 1
+  head_depth: 2
+
 
 
 TrainerConfig:

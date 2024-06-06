@@ -125,7 +125,7 @@ class StateAttention(nn.Module):
         mask = torch.ones(max,max)
         mask[:-num,num:]=0
         return mask
-    def forward(self, x, var_nums,layer_past=None):
+    def forward(self, x, var_nums):
         B, T, C = x.size()
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -154,8 +154,26 @@ class StateAttention(nn.Module):
         # select the begin token as output
         select_res = y[:,0,:]
 
-        return select_res
+        return y
+class StateBlock(nn.Module):
+    """ an unassuming Transformer block """
 
+    def __init__(self, config):
+        super().__init__()
+        self.ln1 = nn.LayerNorm(config.n_embd)
+        self.ln2 = nn.LayerNorm(config.n_embd)
+        self.attn = StateAttention(config)
+        self.mlp = nn.Sequential(
+            nn.Linear(config.n_embd, 4 * config.n_embd),
+            GELU(),
+            nn.Linear(4 * config.n_embd, config.n_embd),
+            nn.Dropout(config.resid_pdrop),
+        )
+
+    def forward(self, x,var_nums):
+        x = x + self.attn(self.ln1(x),var_nums)
+        x = x + self.mlp(self.ln2(x))
+        return x
 class Block(nn.Module):
     """ an unassuming Transformer block """
 
@@ -218,6 +236,12 @@ class GPT(nn.Module):
         self.graph_encoder = nn.Sequential(nn.Linear(config.max_pad_size,config.n_embd))
 
         self.graph_attn = StateAttention(config)
+        self.graph_block1 = StateBlock(config)
+        self.graph_block2 = StateBlock(config)
+        self.graph_block3 = StateBlock(config)
+        self.graph_block4 = StateBlock(config)
+        #self.graph_block =  nn.Sequential(*[StateBlock(config) for _ in range(config.n_layer)])
+        
 
         heads = []
         for _ in range(config.num_heads):
@@ -322,10 +346,19 @@ class GPT(nn.Module):
             # or use attention to aggregate state information and use last token
             pad_graph_embeddings = self.pad_tensor(graph_embeddings,variable_features_nums,max_pad_size=self.config.max_pad_size,pad_value=0)
             # not sure the logic is correct in graph_attn,especiall in create mask and select output result 
-            atten_embeddings = self.graph_attn(pad_graph_embeddings,variable_features_nums)
+            #atten_embeddings = self.graph_attn(pad_graph_embeddings,variable_features_nums) # shape [batch * embd]
+            pad_graph_embeddings = self.graph_block1(pad_graph_embeddings,variable_features_nums)
+            pad_graph_embeddings = self.graph_block2(pad_graph_embeddings,variable_features_nums)
+            pad_graph_embeddings = self.graph_block3(pad_graph_embeddings,variable_features_nums)
+            atten_embeddings = self.graph_block4(pad_graph_embeddings,variable_features_nums)
+            first_token = atten_embeddings[:,0,:]
             # reshape tensor to keep shape same
-            pad_graph_embeddings = torch.unsqueeze(atten_embeddings,dim=1)
-            pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
+            #pad_graph_embeddings = torch.unsqueeze(atten_embeddings,dim=1)
+            #pad_graph_embeddings = pad_graph_embeddings.reshape(-1,rtgs.shape[1] ,self.config.n_embd)
+
+            head_output = [self.heads_module[head](pad_graph_embeddings) for head in range(self.config.num_heads)]
+            # here just use one head, so dont need aggregate,just get first element
+            pad_graph_embeddings = head_output[0]
         else:
             # this code for pad different n (size of variablle) to same size(max_pad_size) etc,994->1000
             pad_graph_embeddings = self.pad_tensor(graph_embeddings,variable_features_nums,max_pad_size=self.config.max_pad_size)
@@ -343,7 +376,7 @@ class GPT(nn.Module):
 
         # this code use to jump transformer just output logits for debug 
         # only use_atten = False can use this code
-        if self.config.jump_attn is True:
+        if self.config.jump_dt:
             logits = pad_graph_embeddings
             # mask those actions not in candidates 
             candidates = candidates.split(candidates_num.cpu().numpy().tolist())
@@ -366,7 +399,9 @@ class GPT(nn.Module):
                 logits = logits.reshape(shape)
 
             return logits, loss
-
+        
+        pad_graph_embeddings = pad_graph_embeddings.permute(0, 2, 1) # [batch,variable_num,context_length] -->[batch,context_length,variable_num]
+        pad_graph_embeddings = self.graph_encoder(pad_graph_embeddings) # variable_num-->embd
         
         if actions is not None and self.model_type == 'reward_conditioned': 
             rtg_embeddings = self.ret_emb(rtgs.type(torch.float32))
