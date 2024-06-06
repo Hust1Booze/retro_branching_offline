@@ -252,7 +252,7 @@ class Trainer:
     def get_returns_for_scip(self, ret):
 
         # instances
-        instances_path = f'/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_instances/set_covering_n_rows_500_n_cols_1000'
+        instances_path = f'/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_instances/set_covering_n_rows_165_n_cols_230'
 
         files = glob.glob(instances_path+f'/*.mps')
         instances = iter([ecole.scip.Model.from_file(f) for f in files])
@@ -540,7 +540,7 @@ class ValidatorForScip():
             result = self.run_episode(ret)
             print(f'instance:{i},num_nodes:{abs(np.sum(result))}')
             self.val_result[i] = result
-        
+        print(f'mean num_nodes:{np.mean(self.val_result)}')
         end = time.time()
         print(f'validator cost time :{end-start}')
         self.save()
@@ -584,7 +584,7 @@ class ValidatorForScip():
             steps =0
             for t in range(self.max_steps):
 
-                action = sampled_action.cpu().numpy()[0,-1]
+                action = sampled_action.cpu().numpy()
                 actions += [sampled_action]
                 obs, action_set, reward, done, info = env.step(action)
                 steps +=1
@@ -714,6 +714,9 @@ def scip_sample(model, x, steps, temperature=1.0, sample=False, top_k=None, acti
             actions = actions if actions.size(1) <= block_size//3 else actions[:, -block_size//3:] # crop context if needed
         rtgs = rtgs if rtgs.size(1) <= block_size//3 else rtgs[:, -block_size//3:] # crop context if needed
         logits, _ = model(input, actions=actions, targets=None, rtgs=rtgs, timesteps=timesteps)
+
+        action = torch.argmax(logits)
+        return action
         # pluck the logits at the final step and scale by temperature
         logits = logits[:, -1, :] / temperature
         # optionally crop probabilities to only the top k options
