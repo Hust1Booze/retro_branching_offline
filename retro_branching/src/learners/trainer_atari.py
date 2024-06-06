@@ -256,7 +256,7 @@ class Trainer:
 
         files = glob.glob(instances_path+f'/*.mps')
         instances = iter([ecole.scip.Model.from_file(f) for f in files])
-        print(instances)
+        #print(instances)
         print(f'Loaded {len(files)} instances from path {instances_path}')
 
         env = EcoleBranching(observation_function=self.config.observation_function,
@@ -286,7 +286,7 @@ class Trainer:
                                             path_to_save=self.config.ckpt_path ,
                                             overwrite=None,
                                             checkpoint_frequency=10)
-        validator.start_val(ret=-30,instance_nums = 10)
+        validator.start_val(ret=-30,instance_nums = 100)
 
     
 class Env():
@@ -536,11 +536,14 @@ class ValidatorForScip():
     def start_val(self,ret,instance_nums):
         steps = []
         start = time.time()
+        total_result = []
         for i in range(instance_nums):
             result = self.run_episode(ret)
-            print(f'instance:{i},num_nodes:{abs(np.sum(result))}')
+            sum = abs(np.sum(result))
+            total_result.append(sum)
+            print(f'instance:{i},num_nodes:{sum}')
             self.val_result[i] = result
-        print(f'mean num_nodes:{np.mean(self.val_result)}')
+        print(f'mean num_nodes:{np.mean(total_result)}')
         end = time.time()
         print(f'validator cost time :{end-start}')
         self.save()

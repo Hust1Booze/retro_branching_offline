@@ -31,7 +31,7 @@ DataConfig:
   data_path : '/home/liutf/datas/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_165_n_cols_230/samples/samples_1/'
   #'/home/liutf/datas/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_1/'
   #'/home/liutf/code/retro_branching_offline/pure_strong_branch/set_covering/max_steps_None/set_covering_n_rows_500_n_cols_1000/samples/samples_3'
-  max_epochs: 100000000 # when laod can load 3200 epochs limit by mem. use 32 for fast load data and debug
+  max_epochs: 10000000 # when laod can load 3200 epochs limit by mem. use 32 for fast load data and debug
 
 GPTConfig:
   embd_pdrop: 0.1
@@ -65,7 +65,7 @@ TrainerConfig:
   game: scip
   max_pad_size: 230
   ckpt_path: '/home/liutf/code/retro_branching_offline/dt_out/'
-  need_get_return: False
+  need_get_return: True
   save_checkpoint: False
 
 ValidConfig:
