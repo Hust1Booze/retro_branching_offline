@@ -252,8 +252,8 @@ class Trainer:
     def get_returns_for_scip(self, ret):
 
         # instances
-        instances_path = f'/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_instances/set_covering_n_rows_165_n_cols_230'
-
+        #instances_path = f'/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_instances/set_covering_n_rows_165_n_cols_230'
+        instances_path = self.config.instance_path
         files = glob.glob(instances_path+f'/*.mps')
         instances = iter([ecole.scip.Model.from_file(f) for f in files])
         #print(instances)

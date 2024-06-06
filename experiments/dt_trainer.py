@@ -2,6 +2,7 @@ from retro_branching.learners import SupervisedLearner
 from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads,GPTConfig ,GPT
 from retro_branching.utils import GraphDataset,StateActionReturnDataset, StateActionReturnDataset_Test,Data_loader,seed_stochastic_modules_globally, gen_co_name
 from retro_branching.loss_functions import CrossEntropy, JensenShannonDistance, KullbackLeiblerDivergence, BinaryCrossEntropyWithLogits, BinaryCrossEntropy, MeanSquaredError
+from retro_branching.utils import  gen_co_name
 
 import torch_geometric 
 import pathlib
@@ -36,6 +37,10 @@ def run(cfg: DictConfig):
     # have to add this to reload cfg, if not do this cant merge,dont know why
     cfg = OmegaConf.create(OmegaConf.to_yaml(cfg))
 
+     # get paths to labelled training and validation data
+    folder_name = 'samples_1' # 'aggregated_samples' 'samples_1'
+    cfg.DataConfig.data_path = cfg.DataConfig.data_path + f'/{cfg.experiment.branching}/{cfg.instances.co_class}/max_steps_{cfg.experiment.max_steps}/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/samples/{folder_name}/'
+    cfg.TrainerConfig.instance_path = cfg.TrainerConfig.instance_path + f'{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}'
     # limit by memory, about can load 3000+ epochs, load 10 epochs for test code 
     loader = Data_loader(cfg.DataConfig.data_path,cfg.DataConfig.max_epochs)
 
@@ -47,8 +52,9 @@ def run(cfg: DictConfig):
         "GPTConfig": {
             "block_size": cfg.DataConfig.context_length*3,
             "max_timestep": max(train_dataset.timesteps),
-            "max_pad_size": cfg.TrainerConfig.max_pad_size,
-            "graph_net": cfg.network
+            "max_pad_size":  cfg.instances.co_class_kwargs.n_cols,
+            "graph_net": cfg.network,
+            "vocab_size": cfg.instances.co_class_kwargs.n_cols
         },
         "TrainerConfig":{
 
@@ -57,7 +63,8 @@ def run(cfg: DictConfig):
             "observation_function": cfg.ValidConfig.observation_function,
             "information_function": cfg.ValidConfig.information_function,
             "reward_function": cfg.ValidConfig.reward_function,
-            "scip_params": cfg.ValidConfig.scip_params
+            "scip_params": cfg.ValidConfig.scip_params,
+            "max_pad_size": cfg.instances.co_class_kwargs.n_cols
         }
     })
 
