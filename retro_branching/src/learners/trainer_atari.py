@@ -26,6 +26,7 @@ from torch.utils.data.dataloader import DataLoader
 from retro_branching.environments import EcoleBranching
 from retro_branching.utils import BipartiteNodeData
 from torch.nn import functional as F
+from omegaconf import DictConfig, OmegaConf
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,10 @@ from collections import defaultdict, deque
 import glob,ecole
 import gzip
 import pickle
+import wandb
+import os
+os.environ["WANDB_API_KEY"] = 'c24806fd6d1ed14163b09712028263ea937b3898'
+os.environ["WANDB_MODE"] = "offline"
 
 class TrainerConfig:
     # optimization parameters
@@ -77,6 +82,24 @@ class Trainer:
             self.model = self.model.to(self.device)
             # no need muti GPUS
             #self.model = torch.nn.DataParallel(self.model).to(self.device)
+
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project="retro_dt",
+
+            # track hyperparameters and run metadata
+                config={
+                    "learning_rate": config.learning_rate,
+                    "batch_size": config.batch_size,
+                    "max_epochs": config.max_epochs,
+                    "observation_function": config.observation_function,
+                    "information_function": config.information_function,
+                    "reward_function": config.reward_function,
+                    "scip_params": config.scip_params,
+                    "max_pad_size": config.max_pad_size
+                    }
+        )
 
     def load_checkpoint(self,model_state_dict_path):
         state_dict = torch.load(model_state_dict_path)
@@ -168,6 +191,7 @@ class Trainer:
             if self.test_dataset is not None:
                 test_loss = run_epoch('test',epoch_num=epoch)
                 logger.info(f"epoch {epoch} ,train loss: {train_loss}, test loss: {test_loss}")
+                wandb.log({"train loss": train_loss, "test loss": test_loss})
 
             # # supports early stopping based on the test loss, or just save always if no test set is provided
             # good_model = self.test_dataset is None or test_loss < best_loss
@@ -544,6 +568,7 @@ class ValidatorForScip():
             print(f'instance:{i},num_nodes:{sum}')
             self.val_result[i] = result
         print(f'mean num_nodes:{np.mean(total_result)}')
+        wandb.log({"mean num_nodes": np.mean(total_result)})
         end = time.time()
         print(f'validator cost time :{end-start}')
         self.save()

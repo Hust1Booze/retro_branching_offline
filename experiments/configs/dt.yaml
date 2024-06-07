@@ -3,8 +3,8 @@ defaults:
 instances:
   co_class: 'set_covering'
   co_class_kwargs:
-    'n_rows': 500
-    'n_cols': 1000
+    'n_rows': 165
+    'n_cols': 230
 
 experiment:
   seed: 0
@@ -28,8 +28,8 @@ learner:
 
 DataConfig:
   context_length: 1 #10
-  data_path : '/home/liutf/datas'
-  max_epochs: 3200 # when laod can load 3200 epochs limit by mem. use 32 for fast load data and debug
+  data_path : '/lab'
+  max_epochs: 10000000 # when laod can load 3200 epochs limit by mem. use 32 for fast load data and debug
 
 GPTConfig:
   embd_pdrop: 0.1
@@ -49,7 +49,7 @@ GPTConfig:
 
 TrainerConfig:
   max_epochs: 1000
-  batch_size: 32 # default 128
+  batch_size: 128 # default 128
   learning_rate: 5e-5 #6e-4
   betas: [0.9, 0.95]
   grad_norm_clip: 1.0
