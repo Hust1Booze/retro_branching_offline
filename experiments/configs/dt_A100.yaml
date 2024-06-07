@@ -1,0 +1,76 @@
+defaults:
+  - network: gasse_network_no_head
+instances:
+  co_class: 'set_covering'
+  co_class_kwargs:
+    'n_rows': 500
+    'n_cols': 1000
+
+experiment:
+  seed: 0
+  device: 'cuda:0'
+  path_to_load_imitation_data: '/scratch/datasets/retro_branching/strong_branching'
+  path_to_save: '/scratch/datasets/retro_branching'
+  branching: 'pure_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
+  max_steps: null # None 3
+  num_samples: 120000
+  num_epochs: 1000
+  
+  
+learner:
+  imitation_target: 'expert_actions' # 'expert_scores' 'expert_score' 'expert_actions' 'expert_bipartite_ranking'
+  loss_function: 'cross_entropy' # mean_squared_error cross_entropy jensen_shannon_distance kullback_leibler_divergence
+  lr: 0.0001
+  epoch_log_frequency: 1
+  checkpoint_frequency: 1
+  name: 'supervised_learner'
+  
+
+DataConfig:
+  context_length: 1 #10
+  data_path : '/lab/shiyh_lab/12332470/datas'
+  max_epochs: 100000 # when laod can load 3200 epochs limit by mem. use 32 for fast load data and debug
+
+GPTConfig:
+  embd_pdrop: 0.1
+  resid_pdrop: 0.1
+  attn_pdrop: 0.1
+  n_layer: 1 # default 6
+  n_head: 4  # default 8
+  n_embd: 256 
+  model_type: reward_conditioned
+  jump_dt: True
+  use_atten: True
+  # this two para use for variable_num-->1
+  num_heads: 1
+  head_depth: 2
+
+
+
+TrainerConfig:
+  max_epochs: 1000
+  batch_size: 64 # default 128
+  learning_rate: 5e-5 #6e-4
+  betas: [0.9, 0.95]
+  grad_norm_clip: 1.0
+  weight_decay: 0.1 # only applied on matmul weights
+  lr_decay: False 
+  warmup_tokens: 10240 #512*20 
+  num_workers: 4
+  seed: 123
+  model_type: reward_conditioned
+  game: scip
+  ckpt_path: '/lab/shiyh_lab/12332470/code/retro_branching_offline/dt_out/'
+  need_get_return: True
+  save_checkpoint: False
+  instance_path: '/lab/shiyh_lab/12332470/code/retro_branching_offline/retro_branching_paper_validation_instances/'
+
+ValidConfig:
+  threshold_difficulty: null
+  max_steps: 10000000000
+  max_steps_agent: null
+  overwrite: True
+  observation_function: 'default'
+  information_function: 'default'
+  reward_function: 'default'
+  scip_params: 'gasse_2019'
