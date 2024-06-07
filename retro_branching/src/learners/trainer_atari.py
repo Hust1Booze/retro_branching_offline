@@ -310,7 +310,7 @@ class Trainer:
                                             path_to_save=self.config.ckpt_path ,
                                             overwrite=None,
                                             checkpoint_frequency=10)
-        validator.start_val(ret=-30,instance_nums = 100)
+        validator.start_val(ret=-30,instance_nums = 90)
 
     
 class Env():
@@ -565,7 +565,7 @@ class ValidatorForScip():
             result = self.run_episode(ret)
             sum = abs(np.sum(result))
             total_result.append(sum)
-            print(f'instance:{i},num_nodes:{sum}')
+            #print(f'instance:{i},num_nodes:{sum}')
             self.val_result[i] = result
         print(f'mean num_nodes:{np.mean(total_result)}')
         wandb.log({"mean num_nodes": np.mean(total_result)})
