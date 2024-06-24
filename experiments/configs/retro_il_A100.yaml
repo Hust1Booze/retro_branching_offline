@@ -1,0 +1,36 @@
+defaults:
+  - network: dqn_value_network
+  - agent: dqn_agent
+  - learner: dqn_learner
+
+environment:
+# 43_var_features  43_var_and_sb_features
+  observation_function: '43_var_and_sb_features' 
+  information_function: 'default'
+  reward_function: 'retro_binary_fathomed'
+  scip_params: 'gasse_2019'
+
+learner:
+  path_to_save: '/scratch/datasets/retro_branching'
+  agent_reward: 'retro_binary_fathomed'
+
+instances:
+  co_class: 'set_covering'
+  co_class_kwargs:
+    'n_rows': 500
+    'n_cols': 1000
+  #co_class: 'combinatorial_auction'
+  #co_class_kwargs:
+    #n_items: 10
+    #n_bids: 50
+
+experiment:
+  seed: 0
+  #device: 'cuda:2'
+  num_epochs: 5000000
+
+  # use for load il agent
+  agent_name: 'il' # pseudocost_branching strong_branching scip_branching
+  path_to_load_agent: '/scratch/datasets/retro_branching/instances/retro_branching_paper_validation_agents'
+  device: 'cuda:0' # cuda:0 cpu
+  
