@@ -4,13 +4,13 @@ defaults:
   - learner: dqn_learner
 
 environment:
-  observation_function: '43_var_features'
+  observation_function: 43_var_and_sb_features #'43_var_features'
   information_function: 'default'
   reward_function: 'retro_binary_fathomed'
   scip_params: 'gasse_2019'
 
 learner:
-  path_to_save: '/scratch/datasets/retro_branching'
+  path_to_save: '../scratch/datasets/retro_branching'
   agent_reward: 'retro_binary_fathomed'
 
 instances:
@@ -25,6 +25,6 @@ instances:
 
 experiment:
   seed: 0
-  device: 'cuda:2'
+  device: 'cuda:0'
   num_epochs: 5000000
   
