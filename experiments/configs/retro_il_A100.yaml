@@ -11,7 +11,7 @@ environment:
   scip_params: 'gasse_2019'
 
 learner:
-  path_to_save: '/scratch/datasets/retro_branching'
+  path_to_save: './scratch/datasets/retro_branching'
   agent_reward: 'retro_binary_fathomed'
 
 instances:
