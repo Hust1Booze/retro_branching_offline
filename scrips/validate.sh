@@ -1,5 +1,6 @@
 #!/bin/bash
-echo "bash test"
+
+# use example : ./my_script.sh /your/path/here
 root_dir=$(pwd)
 echo "root_dir:"${root_dir}
 
@@ -9,10 +10,11 @@ current_time=$(date +"%Y-%m-%d_%H-%M-%S")
 # 构建带有日期时间的文件名
 filename="validate_${current_time}.txt"
 
-total=/home/liutf/code/retro_branching/scratch/datasets/offline_retro/dqn_learner/dqn_gnn/dqn_gnn_3/
+# Get the path parameter
+total_path=$1
 
 # 遍历文件夹，对每个checkpoint validate
-for item in "$total"/*; do
+for item in "$total_path"/*; do
   if [ -d "$item" ] && [[ $item == *"checkpoint"* ]]; then  # 如果是目录
     #echo "Found directory: $item"
     path="${item}/"

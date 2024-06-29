@@ -3,3 +3,4 @@ head_aggregator: 'add'
 deterministic_mdqn: False
 profile_time: False
 name: 'dqn_gnn'
+top_k: 5 

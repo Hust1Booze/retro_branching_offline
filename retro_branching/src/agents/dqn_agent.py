@@ -73,8 +73,7 @@ class DQNAgent:
         self.update_target_network()
         self.profile_time = profile_time
 
-        # il agent
-        self.il_agent = None
+        self.top_k = top_k # number of top k scores in Strong Branch
 
     def init_exploration_agent(self):
         if self.exploration_network is None:
@@ -294,21 +293,19 @@ class DQNAgent:
             self.sb_action = torch.stack([_action_set[torch.from_numpy(score).to(self.device)[_action_set].argmax()] for _action_set,score in zip(self.action_set,scores)])
             
             # only save top K candidates:
-            K =5
-            total_K_indices = []
             for i in range(len(self.preds)):
                 # 使用 argsort 返回排序后的索引
                 sorted_indices = np.argsort(scores[i][self.action_set[i].cpu()])
 
                 # 选择最后 5 个元素的索引，即最大的 5 个值
-                top_K_indices = sorted_indices[-K:]
+                total_k_indices = sorted_indices[-self.top_k:]
                 # 创建掩码，将所有值初始化为 True
                 mask = torch.ones_like(self.preds[i], dtype=torch.bool)
 
                 # 将最大的 5 个值的位置设置为 False
-                mask[top_K_indices] = False
+                mask[total_k_indices] = False
                 self.preds[i].masked_fill_(mask,-math.inf)
-                total_K_indices.append(top_K_indices)
+                total_K_indices.append(total_k_indices)
 
             if kwargs['epsilon'] > 0:
                 # explore
@@ -356,16 +353,15 @@ class DQNAgent:
 
         else:
             # single observation
-            K=5
             # 使用 argsort 返回排序后的索引
             sorted_indices = np.argsort(scores[self.action_set])
             # 选择最后 5 个元素的索引，即最大的 5 个值
-            top_K_indices = sorted_indices[-K:]
+            top_k_indices = sorted_indices[-self.top_k:]
             # 创建掩码，将所有值初始化为 True
             mask = torch.ones_like(self.preds, dtype=torch.bool)
 
             # 将最大的 5 个值的位置设置为 False
-            mask[top_K_indices] = False
+            mask[top_k_indices] = False
             self.preds.masked_fill_(mask,-math.inf)
             if random.random() > kwargs['epsilon']:
                 # exploit
