@@ -33,8 +33,10 @@ def run(cfg: DictConfig):
     agents = {}
     if cfg.experiment.agent_name not in set(['pseudocost_branching', 'strong_branching', 'scip_branching']):
         # is an ML agent
-        #path = cfg.experiment.path_to_load_agent
-        path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+        # this path to load out train agent
+        path = cfg.experiment.path_to_load_agent+ '/'
+        # this path use to load ./retro_branching_paper_validation_agents, just for run paper result
+        #path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
         config = path + 'config.json'
         print('config :'+ config)
         agent = Agent(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)

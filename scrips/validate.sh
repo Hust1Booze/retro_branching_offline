@@ -11,7 +11,7 @@ current_time=$(date +"%Y-%m-%d_%H-%M-%S")
 filename="validate_${current_time}.txt"
 
 # Get the path parameter
-total_path=$1
+total_path=$1/
 
 # 遍历文件夹，对每个checkpoint validate
 for item in "$total_path"/*; do
