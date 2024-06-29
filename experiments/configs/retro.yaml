@@ -18,10 +18,6 @@ instances:
   co_class_kwargs:
     'n_rows': 165
     'n_cols': 230
-  #co_class: 'combinatorial_auction'
-  #co_class_kwargs:
-    #n_items: 10
-    #n_bids: 50
 
 experiment:
   seed: 0
