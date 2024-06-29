@@ -305,7 +305,7 @@ class DQNAgent:
                 # 将最大的 5 个值的位置设置为 False
                 mask[total_k_indices] = False
                 self.preds[i].masked_fill_(mask,-math.inf)
-                total_K_indices.append(total_k_indices)
+                total_k_indices.append(total_k_indices)
 
             if kwargs['epsilon'] > 0:
                 # explore
@@ -323,7 +323,7 @@ class DQNAgent:
                 self.action = torch.stack([_action_set[idx] for _action_set, idx in zip(self.action_set, self.action_idx)])
 
                 # check action is right
-                for action,score,action_set,_K_indices in zip(self.action,scores,self.action_set,total_K_indices):
+                for action,score,action_set,_K_indices in zip(self.action,scores,self.action_set,total_k_indices):
                     assert action.item() in action_set[_K_indices],  "action should in top_k_indices"
 
             if False:
@@ -378,9 +378,9 @@ class DQNAgent:
             else:
                 # explore 
                 # uniform random action selection
-                self.action, self.action_idx = self.exploration_agent.action_select(action_set=self.action_set[top_K_indices], obs=self.obs, model=kwargs['model'], done=kwargs['done'], sample_stochastically=self.sample_stochastically)
+                self.action, self.action_idx = self.exploration_agent.action_select(action_set=self.action_set[top_k_indices], obs=self.obs, model=kwargs['model'], done=kwargs['done'], sample_stochastically=self.sample_stochastically)
 
-            assert self.action.item() in self.action_set[top_K_indices],  "action should in top_k_indices"
+            assert self.action.item() in self.action_set[top_k_indices],  "action should in top_k_indices"
             if False:
                 # policy expansion logic
                 # get Q-value of normal action and sb action 
