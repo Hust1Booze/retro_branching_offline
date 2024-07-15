@@ -113,7 +113,7 @@ def init_save_dir(path, name):
     return _path+foldername
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
+@hydra.main(config_path='configs', config_name='gen_imitation_data.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -166,22 +166,22 @@ def run(cfg: DictConfig):
         print(f'Completed {NUM_CPUS*cfg.experiment.num_cpus_factor} parallel processes in {round(end-start, 3)} s.')
 
         # save collected samples
-        # for data_to_save in runs_data_to_save:
-        #     for data in data_to_save:
-        #         filename = f'{path}sample_{sample_counter}.pkl'
-        #         with gzip.open(filename, 'wb') as f:
-        #             pickle.dump(data, f)
-        #         sample_counter += 1
-
-        #save format for dt
         for data_to_save in runs_data_to_save:
-            os.mkdir(f'{path}/epoch_{epoch_save_counter}')
             for data in data_to_save:
-                filename = f'{path}/epoch_{epoch_save_counter}/sample_{sample_counter}.pkl'
+                filename = f'{path}sample_{sample_counter}.pkl'
                 with gzip.open(filename, 'wb') as f:
                     pickle.dump(data, f)
                 sample_counter += 1
-            epoch_save_counter += 1
+
+        #save format for dt
+        # for data_to_save in runs_data_to_save:
+        #     os.mkdir(f'{path}/epoch_{epoch_save_counter}')
+        #     for data in data_to_save:
+        #         filename = f'{path}/epoch_{epoch_save_counter}/sample_{sample_counter}.pkl'
+        #         with gzip.open(filename, 'wb') as f:
+        #             pickle.dump(data, f)
+        #         sample_counter += 1
+        #     epoch_save_counter += 1
 
         loop_counter += 1
 

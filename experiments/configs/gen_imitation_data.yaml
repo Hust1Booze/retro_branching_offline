@@ -1,12 +1,12 @@
 instances:
   co_class: 'set_covering'
   co_class_kwargs:
-    'n_rows': 165
-    'n_cols': 230
+    'n_rows': 500
+    'n_cols': 1000
 
 experiment:
   seed: 0  
-  path_to_save: '/home/liutf/code/retro_branching_offline/explore_then_strong_branch'
+  path_to_save: '/data/retro_branching_offline/'
   num_cpus_factor: 20
   branching: 'pure_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   min_samples: 126000

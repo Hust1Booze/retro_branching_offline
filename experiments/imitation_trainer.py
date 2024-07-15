@@ -44,7 +44,7 @@ def run(cfg: DictConfig):
     print(f'Loading imitation data from {path}...')
     if not os.path.isdir(path):
         raise Exception(f'Path {path} does not exist')
-    files = np.array(glob.glob(path+'/*/*.pkl'))
+    files = np.array(glob.glob(path+'*.pkl'))
     sample_files = files[:cfg.experiment.num_samples]
     files = [] # clear memory
     train_files = sample_files[:int(0.83*len(sample_files))]

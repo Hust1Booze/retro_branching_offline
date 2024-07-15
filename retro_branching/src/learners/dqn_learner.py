@@ -173,20 +173,12 @@ class BacktrackRollout:
 
 def extract_state_tensors_from_ecole_obs(obs, action_set):
     
-    obs,sb_obs = obs
-    scores = sb_obs
-
-    #print(f'obs{obs}')
-    #print(f'sb_obs{sb_obs}')
-    #print(f'scores{scores}')
-    #import sys
-    #sys.exit()
     return (obs.row_features.astype(np.float32), 
             obs.edge_features.indices.astype(np.int16),
             obs.edge_features.values.astype(np.float32),
             obs.column_features.astype(np.float32),
             action_set.astype(np.int16),
-            ),scores
+            )
 
 def process_episodes_into_subtree_episodes(episode_experiences,
                                            reward, 

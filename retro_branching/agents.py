@@ -7,3 +7,4 @@ from retro_branching.src.agents.dqn_agent import DQNAgent
 from retro_branching.src.agents.double_dqn_agent import DoubleDQNAgent
 from retro_branching.src.agents.averaged_dqn_agent import AveragedDQNAgent
 from retro_branching.src.agents.ppo_agent import PPOAgent
+from retro_branching.src.agents.gail_agent import GAILAgent

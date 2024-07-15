@@ -1,0 +1,27 @@
+reproducible_episodes: True
+value_function_coeff: 0.5
+entropy_coeff: 0.01
+eps_clip: 0.2
+whiten_rewards: True
+lr_actor: 3e-4 # default 1e-1
+lr_critic: 3e-4 # default 5e-1
+lr_discriminator: 3e-4
+critic_loss_function: null
+discriminator_loss_function: null
+batch_size: 32
+gradient_accumulation_factor: 1
+actor_gradient_clipping_clip_value: null
+critic_gradient_clipping_clip_value: null
+ppo_update_freq: 32 # defualt 1 ,here set  as batch_size 
+ppo_epochs_per_update: 4 # default 1
+gamma: 1 # defaul 0.75, set 1 for Gail
+num_workers: null
+episode_log_freq: 1
+epoch_log_freq: 1
+checkpoint_freq: 10
+path_to_save: null
+use_sqlite_database: False
+profile_time: False
+debug_mode: False
+name: 'gail_learner'
+

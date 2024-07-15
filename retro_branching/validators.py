@@ -142,10 +142,9 @@ def extract_state_tensors_from_ecole_obs(obs, device):
 
     # the behind two lines are for offline_dqn,which have two diff obs \
     try:
-        obs,sb_obs = obs
-        scores = sb_obs
+        obs,scores = obs
     except:
-        print()
+        pass
 
     return (torch.from_numpy(obs.row_features.astype(np.float32)).to(device), 
             torch.LongTensor(obs.edge_features.indices.astype(np.int16)).to(device),
@@ -496,7 +495,14 @@ class ReinforcementLearningValidator:
                 for t in range(self.max_steps):
                     if 'cuda' in self.device:
                         # extract input for DNN
+                        obs,scores = obs
                         obs = extract_state_tensors_from_ecole_obs(obs, self.device) 
+                        top_k = 10 # temp write here
+                        sorted_indices = np.argsort(scores[action_set])
+                        # 选择最后 5 个元素的索引，即最大的 5 个值
+                        top_k_indices = sorted_indices[-top_k:]
+                        action_set = action_set[top_k_indices]
+                        print(action_set)
                     
                     # solve for this step
                     solve_start_t = time.time_ns()
@@ -523,6 +529,7 @@ class ReinforcementLearningValidator:
                         # using default scip branching heuristic in configuring env
                         action = {}
 
+                    print(action)
                     # take step in environments
                     step_start_t = time.time_ns()
                     obs, action_set, reward, done, info = env.step(action)

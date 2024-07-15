@@ -1,6 +1,7 @@
 import retro_branching
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric
 import numpy as np
@@ -8,7 +9,90 @@ import ml_collections
 import copy
 import json
 import time
+import math
 
+
+class GELU(nn.Module):
+    def forward(self, input):
+        return F.gelu(input)
+class StateAttention(nn.Module):
+    """
+    A vanilla multi-head masked self-attention layer with a projection at the end.
+    It is possible to use torch.nn.MultiheadAttention here but I am including an
+    explicit implementation here to show that there is nothing too scary here.
+    """
+
+    def __init__(self, emb_size, resid_pdrop, pdrop, heads):
+        super().__init__()
+        assert emb_size % heads == 0
+        # key, query, value projections for all heads
+        self.key = nn.Linear(emb_size, emb_size)
+        self.query = nn.Linear(emb_size, emb_size)
+        self.value = nn.Linear(emb_size, emb_size)
+        # regularization
+        self.attn_drop = nn.Dropout(pdrop)
+        self.resid_drop = nn.Dropout(resid_pdrop)
+        # output projection
+        self.proj = nn.Linear(emb_size, emb_size)
+
+        self.n_head = heads
+    
+    def make_mask(self,max,num):
+        # 创建一个 n*n 大小的单位矩阵
+        mask = torch.ones(max,max)
+        mask[:-num,num:]=0
+        return mask
+    def forward(self, x, num_candidates):
+        B, T, C = x.size()
+
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+
+        #make maskes that just mask pad zeros
+        mask = torch.stack([self.make_mask(att.shape[-1],num) for num in num_candidates])
+        mask =torch.unsqueeze(mask, dim=1).to(att.device)
+        att = att.masked_fill(mask == 0, float('-inf'))
+        att = F.softmax(att, dim=-1)
+        att = self.attn_drop(att)
+        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+
+        # output projection
+        y = self.resid_drop(self.proj(y))
+
+        # #choose last token of result as output
+        # select_res = y[torch.arange(y.size(0)), var_nums - 1]
+
+        # # select the begin token as output
+        # select_res = y[:,0,:]
+
+        return y
+class StateBlock(nn.Module):
+    """ an unassuming Transformer block """
+
+    def __init__(self, emb_size, resid_pdrop, pdrop, heads):
+        super().__init__()
+        self.ln1 = nn.LayerNorm(emb_size)
+        self.ln2 = nn.LayerNorm(emb_size)
+        self.attn = StateAttention(emb_size, resid_pdrop, pdrop, heads)
+        self.mlp = nn.Sequential(
+            nn.Linear(emb_size, 4 * emb_size),
+            GELU(),
+            nn.Linear(4 * emb_size, emb_size),
+            nn.Dropout(resid_pdrop),
+        )
+    
+    #need use variable_nums to mask those pad tokens by padding
+    def forward(self, x,num_candidates):
+        x = x + self.attn(self.ln1(x), num_candidates)
+        x = x + self.mlp(self.ln2(x))
+        return x
+    
 class BipartiteGCN(torch.nn.Module):
     def __init__(self, 
                  device, 
@@ -32,6 +116,10 @@ class BipartiteGCN(torch.nn.Module):
                  profile_time=False,
                  print_warning=True,
                  name='gnn',
+                 use_state_atten=False,
+                 atten_resid_pdrop=0.1,
+                 atten_pdrop=0.1,
+                 atten_heads=8,
                  **kwargs):
         '''
         Args:
@@ -83,7 +171,11 @@ class BipartiteGCN(torch.nn.Module):
                                  layernorm_bias_init=layernorm_bias_init,
                                  head_aggregator=head_aggregator,
                                  include_edge_features=include_edge_features,
-                                 use_old_heads_implementation=use_old_heads_implementation)
+                                 use_old_heads_implementation=use_old_heads_implementation,
+                                 use_state_atten = use_state_atten,
+                                 atten_resid_pdrop=atten_resid_pdrop,
+                                 atten_pdrop=atten_pdrop,
+                                 atten_heads=atten_heads)
 
         self.profile_time = profile_time
         self.printed_warning = False
@@ -134,7 +226,12 @@ class BipartiteGCN(torch.nn.Module):
                              layernorm_bias_init=config.layernorm_bias_init,
                              head_aggregator=config.head_aggregator,
                              include_edge_features=config.include_edge_features,
-                             use_old_heads_implementation=config.use_old_heads_implementation)
+                             use_old_heads_implementation=config.use_old_heads_implementation,
+                             use_state_atten = config.use_state_atten,
+                             atten_resid_pdrop = config.atten_resid_pdrop,
+                             atten_pdrop = config.atten_pdrop,
+                             atten_heads = config.atten_heads)
+                             
 
         if isinstance(self.head_aggregator, ml_collections.config_dict.config_dict.ConfigDict):
             # convert to standard dictionary
@@ -223,7 +320,11 @@ class BipartiteGCN(torch.nn.Module):
                         layernorm_bias_init=None,
                         head_aggregator='add',
                         include_edge_features=False,
-                        use_old_heads_implementation=False):
+                        use_old_heads_implementation=False,
+                        use_state_atten=False,
+                        atten_resid_pdrop=0.1,
+                        atten_pdrop=0.1,
+                        atten_heads=8):                        
         self.emb_size = emb_size
         self.num_rounds = num_rounds
         self.cons_nfeats = cons_nfeats
@@ -240,6 +341,10 @@ class BipartiteGCN(torch.nn.Module):
         self.head_aggregator = head_aggregator
         self.include_edge_features = include_edge_features
         self.use_old_heads_implementation = use_old_heads_implementation
+        self.use_state_atten = use_state_atten
+        self.atten_resid_pdrop = atten_resid_pdrop
+        self.atten_pdrop = atten_pdrop
+        self.atten_heads = atten_heads
 
         # CONSTRAINT EMBEDDING
         self.cons_embedding = torch.nn.Sequential(
@@ -297,6 +402,10 @@ class BipartiteGCN(torch.nn.Module):
                 heads.append(torch.nn.Sequential(*head))
             self.heads_module = torch.nn.ModuleList(heads)
 
+        # Attention
+        if self.use_state_atten:
+            self.state_atten = StateBlock(emb_size,atten_resid_pdrop,atten_pdrop,atten_heads)
+
 
         if self.activation is None:
             self.activation_module = None
@@ -323,9 +432,21 @@ class BipartiteGCN(torch.nn.Module):
 
 
 
+    def pad_tensor(self,input_, pad_sizes ,pad_value=-1e8):
+        """
+        This utility function splits a tensor and pads each split to make them all the same size, then stacks them.
+        """
+        # this value should be max variable nums of this batch states
+        max_pad_size = max(pad_sizes).item()
+        output = input_.split(pad_sizes.cpu().numpy().tolist())
+        # output = torch.stack([F.pad(slice_, (0, max_pad_size - slice_.size(0)), 'constant', pad_value)
+        #                     for slice_ in output], dim=0)
+        
+        output = torch.stack([torch.cat([slice_,torch.full((max_pad_size - slice_.size(0),slice_.size(1)),-1e8).to('cuda:0')],dim=0)
+                            for slice_ in output], dim=0)
+        return output
 
-
-    def forward(self, *_obs, print_warning=True):
+    def forward(self, *_obs, candidates = None, num_candidates = None, print_warning=True):
         '''Returns output of each head.'''
         forward_start = time.time()
         if len(_obs) > 1:
@@ -398,6 +519,16 @@ class BipartiteGCN(torch.nn.Module):
             conv_t = time.time() - conv_start
             print(f'conv_t: {conv_t*1e3:.3f} ms')
 
+        if self.use_state_atten:
+            if type(num_candidates) is not int:
+                variable_features = variable_features[candidates]
+                variable_features = self.pad_tensor(variable_features, num_candidates)
+            else:
+                variable_features = variable_features[candidates].unsqueeze(0)
+                num_candidates = [num_candidates]
+
+            variable_features = self.state_atten(variable_features,num_candidates) # n * max_num_candidates * dim
+        
         # get output for each head
         head_output_start = time.time()
         head_output = [self.heads_module[head](variable_features).squeeze(-1) for head in range(self.num_heads)]

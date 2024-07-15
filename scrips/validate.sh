@@ -13,6 +13,19 @@ filename="validate_${current_time}.txt"
 # Get the path parameter
 total_path=$1/
 
+#指定checkpoint
+if [ -n "$2" ]; then
+  echo "one checkpoint"
+  path="${total_path}/checkpoint_$2"
+  echo "begin validate $path"
+  python experiments/validator.py --config-path=configs --config-name=validator.yaml \
+  environment.observation_function=43_var_and_sb_features  \
+  instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000 \
+  experiment.agent_name=offline_retro experiment.path_to_load_agent=${path} \
+  experiment.path_to_load_instances=${root_dir}/retro_branching_paper_validation_instances \
+  experiment.path_to_save=${path}  | tee "${path}/${filename}"
+  exit 1
+fi
 # 遍历文件夹，对每个checkpoint validate
 for item in "$total_path"/*; do
   if [ -d "$item" ] && [[ $item == *"checkpoint"* ]]; then  # 如果是目录
@@ -21,7 +34,12 @@ for item in "$total_path"/*; do
     #echo ${path}
     if [ ! -d "$path/rl_validator" ]; then
 	echo "begin validate $path"
-    	python experiments/validator.py --config-path=configs --config-name=validator.yaml environment.observation_function=43_var_and_sb_features  instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000 experiment.agent_name=offline_retro experiment.path_to_load_agent=${path} experiment.path_to_load_instances=${root_dir}/retro_branching_paper_validation_instances experiment.path_to_save=${path}  | tee "$filename"
+    	python experiments/validator.py --config-path=configs --config-name=validator.yaml \
+      environment.observation_function=43_var_and_sb_features  \
+      instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000 \
+      experiment.agent_name=offline_retro experiment.path_to_load_agent=${path} \
+      experiment.path_to_load_instances=${root_dir}/retro_branching_paper_validation_instances \
+      experiment.path_to_save=${path}  | tee "${path}/${filename}"
     fi    
   fi
 done

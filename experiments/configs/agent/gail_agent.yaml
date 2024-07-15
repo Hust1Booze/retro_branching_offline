@@ -1,0 +1,3 @@
+head_aggregator: 'add'
+num_heads: 1
+name: 'gail_gnn'

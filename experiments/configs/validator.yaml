@@ -9,10 +9,6 @@ instances:
   co_class_kwargs:
     n_rows: 500
     n_cols: 1000
-  #co_class: 'combinatorial_auction'
-  #co_class_kwargs:
-    #n_items: 10
-    #n_bids: 50
     
 validator:
   threshold_difficulty: null
@@ -21,8 +17,8 @@ validator:
   overwrite: True
   
 experiment:
-  agent_name: 'il' # pseudocost_branching strong_branching scip_branching
+  agent_name: 'scip_branching' # pseudocost_branching strong_branching scip_branching
   path_to_load_agent: '/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_agents'
   path_to_load_instances: '/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_instances'
-  path_to_save: '/scratch/datasets/retro_branching/instances/retro_branching_paper_validation_agents'
+  path_to_save: '/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_agents'
   device: 'cuda:0' # cuda:0 cpu
