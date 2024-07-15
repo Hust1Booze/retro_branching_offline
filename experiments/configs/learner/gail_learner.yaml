@@ -12,7 +12,7 @@ batch_size: 32
 gradient_accumulation_factor: 1
 actor_gradient_clipping_clip_value: null
 critic_gradient_clipping_clip_value: null
-ppo_update_freq: 32 # defualt 1 ,here set  as batch_size 
+ppo_update_freq: 5 # defualt 1 
 ppo_epochs_per_update: 4 # default 1
 gamma: 1 # defaul 0.75, set 1 for Gail
 num_workers: null

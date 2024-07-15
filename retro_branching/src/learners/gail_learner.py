@@ -493,7 +493,7 @@ class GAILLearner(Learner):
 
 
     def get_episode_log_str(self):
-        log_str = f'Ep {self.episode_counter}'
+        log_str = f'Episode {self.episode_counter}'
         log_str += f', PPO epochs: {self.ppo_epoch_counter}'
         log_str += f', net epochs: {self.network_epoch_counter}'
         log_str += f' | Nodes: {self.episodes_log["num_nodes"][-1]}'
