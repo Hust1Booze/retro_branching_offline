@@ -6,7 +6,7 @@ defaults:
 environment:
   observation_function: 'default' #'43_var_features'
   information_function: 'default'
-  reward_function: 'retro_binary_fathomed'
+  reward_function: 'dual_bound_change' #'retro_binary_fathomed'
   scip_params: 'gasse_2019'
 
 learner:
@@ -23,7 +23,7 @@ experiment:
   device: 'cuda:0'
   num_epochs: 5000000
   path_to_load_imitation_data: '/data/retro_branching_offline/'
-  load_num_samples: 200 #default 120000
+  #load_num_samples: 200 #default 120000
   branching: 'pure_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null # None 3
   num_samples: 120000

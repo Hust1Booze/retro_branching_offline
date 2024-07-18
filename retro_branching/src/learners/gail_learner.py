@@ -87,7 +87,7 @@ def reset_env(ecole_seed,
               reward_function,
               scip_params,
               instances, 
-              intrinsic_reward=None,
+              extrinsic_reward=None,
               max_attempts=500):
     if isinstance(instances, str):
         # single path to instance
@@ -130,62 +130,64 @@ def reset_env(ecole_seed,
 
 @ray.remote
 def run_parallel_episode(agent,
-        extrinsic_reward,
-        intrinsic_reward,
-        intrinsic_extrinsic_combiner,
         ecole_seed,
         reproducible_episodes,
-                         episode_id, 
-                         _buffer, 
-                         device, 
-                         observation_function,
-                         information_function,
-                         reward_function,
-                         scip_params,
-                         instances,
-                         train_predictor=True,
-                         debug_mode=False):
+        episode_id, 
+        _buffer, 
+        device, 
+        observation_function,
+        information_function,
+        reward_function,
+        scip_params,
+        instances,
+        extrinsic_reward ,
+        gail_strength,
+        train_predictor=True,
+        debug_mode=False):
     return _run_episode(agent=agent,
-                        extrinsic_reward=extrinsic_reward,
-                        intrinsic_reward=intrinsic_reward,
-                        intrinsic_extrinsic_combiner=intrinsic_extrinsic_combiner,
                         ecole_seed=ecole_seed,
-                                                        reproducible_episodes=reproducible_episodes,
-                                                           episode_id=episode_id, 
-                                                           _buffer=_buffer,
-                                                           device=device,
-                                                           observation_function=observation_function,
-                                                           information_function=information_function,
-                                                           reward_function=reward_function,
-                                                           scip_params=scip_params,
-                                                           instances=instances,
-                                                           debug_mode=debug_mode)
+                        reproducible_episodes=reproducible_episodes,
+                        episode_id=episode_id, 
+                        _buffer=_buffer,
+                        device=device,
+                        observation_function=observation_function,
+                        information_function=information_function,
+                        reward_function=reward_function,
+                        scip_params=scip_params,
+                        instances=instances,
+                        extrinsic_reward = extrinsic_reward ,
+                        gail_strength = gail_strength,
+                        debug_mode=debug_mode)
 
 def run_sequential_episode(agent,
         ecole_seed,
         reproducible_episodes,
-                         episode_id, 
-                         _buffer, 
-                         device, 
-                         observation_function,
-                         information_function,
-                         reward_function,
-                         scip_params,
-                         instances,
-                         train_predictor=True,
-                         debug_mode=False):
+        episode_id, 
+        _buffer, 
+        device, 
+        observation_function,
+        information_function,
+        reward_function,
+        scip_params,
+        instances,
+        extrinsic_reward,
+        gail_strength,
+        train_predictor=True,
+        debug_mode=False):
     return _run_episode(agent,
             ecole_seed=ecole_seed,
-                        reproducible_episodes=reproducible_episodes,
-                           episode_id=episode_id, 
-                           _buffer=_buffer,
-                           device=device,
-                           observation_function=observation_function,
-                           information_function=information_function,
-                           reward_function=reward_function,
-                           scip_params=scip_params,
-                           instances=instances,
-                           debug_mode=debug_mode)
+            reproducible_episodes=reproducible_episodes,
+            episode_id=episode_id, 
+            _buffer=_buffer,
+            device=device,
+            observation_function=observation_function,
+            information_function=information_function,
+            reward_function=reward_function,
+            scip_params=scip_params,
+            instances=instances,
+            extrinsic_reward = extrinsic_reward,
+            gail_strength = gail_strength,
+            debug_mode=debug_mode)
 
 
 def _run_episode(agent,
@@ -199,6 +201,8 @@ def _run_episode(agent,
              reward_function,
              scip_params,
              instances,
+             extrinsic_reward,
+             gail_strength,
              train_predictor=True,
              debug_mode=False):
     if debug_mode:
@@ -220,6 +224,10 @@ def _run_episode(agent,
     episode_step_counter = 0
     start_t = time.time()
     while not done:
+        # prevent too long episode
+        if episode_step_counter >=1000:
+            break
+
         action_set = action_set.astype(int)
 
         # update buffer
@@ -231,20 +239,23 @@ def _run_episode(agent,
         # use actor to select action
         action, action_idx = agent.action_select(action_set=action_set, obs=obs)
 
-        _reward = agent.get_expert_reward(obs, action_set, action_idx)
+        gail_reward = agent.get_expert_reward(obs, action_set, action_idx)
 
         # step env
         obs, action_set, reward, done, info = env.step(action)
         episode_step_counter += 1
 
+        _extrinsic_reward = reward[extrinsic_reward]
+
+        total_reward = _extrinsic_reward + gail_strength * gail_reward
         # update buffer
         _buffer.action_idxs.append(action_idx)
         _buffer.logprobs.append(agent.action_logprob)
-        _buffer.rewards.append(_reward)
+        _buffer.rewards.append(total_reward)
         _buffer.dones.append(done)
 
         if debug_mode:
-            print(f'step {episode_step_counter} || action: {action} | action_idx: {action_idx} | reward: {_reward} | done: {done}')
+            print(f'step {episode_step_counter} || action: {action} | action_idx: {action_idx} | _extrinsic_reward: {_extrinsic_reward} | gail_reward: {gail_reward} | done: {done}')
     if debug_mode:
         print(f'Finished episode.')
     end_t = time.time()
@@ -311,6 +322,8 @@ class GAILLearner(Learner):
                  use_sqlite_database=False,
                  profile_time=False,
                  debug_mode=False,
+                 extrinsic_reward = 'dual_bound_change',
+                 gail_strength = 0.1,
                  name='ppo_learner'):
         super(GAILLearner, self).__init__(agent, path_to_save, name)
 
@@ -359,6 +372,9 @@ class GAILLearner(Learner):
         if self.num_workers is not None:
             ray.init(num_cpus=self.num_workers)
 
+        self.extrinsic_reward = extrinsic_reward
+        self.gail_strength = gail_strength
+
         self.episode_log_freq = episode_log_freq
         self.epoch_log_freq = epoch_log_freq
         self.checkpoint_freq = checkpoint_freq
@@ -403,8 +419,9 @@ class GAILLearner(Learner):
                                                                            reward_function=self.env.str_reward_function,
                                                                            scip_params=self.env.str_scip_params,
                                                                            instances=self.instances,
-                                                                           debug_mode=self.debug_mode,
-                                                                           )
+                                                                           extrinsic_reward = self.extrinsic_reward,
+                                                                           gail_strength = self.gail_strength,
+                                                                           debug_mode=self.debug_mode)
                 self.episode_counter += 1
                 self.actor_step_counter += episode_stats['episode_step_counter']
                 self.update_episodes_log(episode_stats)
@@ -439,8 +456,9 @@ class GAILLearner(Learner):
                                                                            reward_function=self.env.str_reward_function,
                                                                            scip_params=self.env.str_scip_params,
                                                                            instances=next(self.instances),
-                                                                           debug_mode=self.debug_mode,
-                                                                           ))
+                                                                           extrinsic_reward = self.extrinsic_reward,
+                                                                           gail_strength = self.gail_strength,
+                                                                           debug_mode=self.debug_mode))
 
                     # collect results
                     outputs = ray.get(result_ids)
@@ -635,8 +653,6 @@ class GAILLearner(Learner):
         # batch experiences in buffer
         batch_to_state, batch_to_action_idx, batch_to_logprob, batch_to_discounted_reward, epoch_stats = self.batch_buffer_experiences(episode_to_buffer, epoch_stats)
 
-        #update discriminator para
-        self.discriminator_optimizer.zero_grad()
         # shuffle batch_id order each PPO epoch to help with learning
         batch_ids = list(batch_to_state.keys())
         random.shuffle(batch_ids)
@@ -668,6 +684,9 @@ class GAILLearner(Learner):
             result = e_o[torch.arange(e_o.size(0)), expert_batch.candidate_choices.type(torch.long)]
             e_o = torch.sigmoid(result)
 
+                #update discriminator para
+            self.discriminator_optimizer.zero_grad()
+            
             g_loss = self.discriminator_loss_function(g_o, torch.ones((g_o.shape[0]), device=self.agent.device))
             e_loss = self.discriminator_loss_function(e_o, torch.zeros((e_o.shape[0]), device=self.agent.device))
             discrim_loss = g_loss + e_loss
@@ -839,7 +858,10 @@ class GAILLearner(Learner):
         self.epochs_log = defaultdict(list)
 
     def move_agent_to_device(self, agent, device):
-        agent.to(device)
+        agent.actor_network.to(device)
+        agent.critic_network.to(device)
+        agent.discriminator_network.to(device)
+
         return agent
 
 

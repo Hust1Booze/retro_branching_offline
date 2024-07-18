@@ -761,3 +761,45 @@ class PureStrongBranch:
 
     def extract(self, model, done):
         return (self.strong_branching_function.extract(model, done))
+    
+
+class SovingTimeInfo:
+    def __init__(self):
+        pass
+
+    def before_reset(self, model):
+        pass
+
+    def extract(self, model, done):
+        m = model.as_pyscipopt()
+
+        stage = m.getStage()
+        #sense = 1 if m.getObjectiveSense() == "minimize" else -1
+
+        # primal_bound = sense * m.infinity()
+        # dual_bound = sense * -m.infinity()
+        nlpiters = 0
+        nnodes = 0
+        solvingtime = 0
+        #status = m.getStatus()
+
+        if stage >= pyscipopt.scip.PY_SCIP_STAGE.PROBLEM:
+            #primal_bound = m.getObjlimit()
+            #nnodes = m.getNNodes()
+            solvingtime = m.getSolvingTime()
+
+        # if stage >= pyscipopt.scip.PY_SCIP_STAGE.TRANSFORMED:
+        #     primal_bound = m.getPrimalbound()
+        #     dual_bound = m.getDualbound()
+
+        # if stage >= pyscipopt.scip.PY_SCIP_STAGE.PRESOLVING:
+        #     nlpiters = m.getNLPIterations()
+
+        return solvingtime
+
+        # return {'primal_bound': primal_bound,
+        #         'dual_bound': dual_bound,
+        #         'nlpiters': nlpiters,
+        #         'nnodes': nnodes,
+        #         'solvingtime': solvingtime,
+        #         'status': status}

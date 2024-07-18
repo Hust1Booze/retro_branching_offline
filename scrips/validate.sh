@@ -19,9 +19,9 @@ if [ -n "$2" ]; then
   path="${total_path}/checkpoint_$2"
   echo "begin validate $path"
   python experiments/validator.py --config-path=configs --config-name=validator.yaml \
-  environment.observation_function=43_var_and_sb_features  \
+  environment.observation_function=default  \
   instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000 \
-  experiment.agent_name=offline_retro experiment.path_to_load_agent=${path} \
+  experiment.agent_name=gail experiment.path_to_load_agent=${path} \
   experiment.path_to_load_instances=${root_dir}/retro_branching_paper_validation_instances \
   experiment.path_to_save=${path}  | tee "${path}/${filename}"
   exit 1
@@ -35,9 +35,9 @@ for item in "$total_path"/*; do
     if [ ! -d "$path/rl_validator" ]; then
 	echo "begin validate $path"
     	python experiments/validator.py --config-path=configs --config-name=validator.yaml \
-      environment.observation_function=43_var_and_sb_features  \
+      environment.observation_function=default  \
       instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000 \
-      experiment.agent_name=offline_retro experiment.path_to_load_agent=${path} \
+      experiment.agent_name=gail experiment.path_to_load_agent=${path} \
       experiment.path_to_load_instances=${root_dir}/retro_branching_paper_validation_instances \
       experiment.path_to_save=${path}  | tee "${path}/${filename}"
     fi    

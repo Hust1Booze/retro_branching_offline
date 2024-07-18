@@ -464,7 +464,9 @@ class ReinforcementLearningValidator:
 
             # solve instance with agent
             self.run_episode(episode)
-
+        
+        for agent in self.agents.values():
+            agent.BBTree.save_log()
         # save validation data
         self.save_checkpoint()
 
@@ -485,24 +487,28 @@ class ReinforcementLearningValidator:
             env = self.envs[agent_name]
             agent = self.agents[agent_name]
             start = time.time()
+
+            if agent_name == 'strong_branching':
+                agent.BBTree.start_new = True
             with torch.no_grad():
                 episode_stats = defaultdict(list)
                 env.seed(self.seed)
                 obs, action_set, reward, done, info = env.reset(instance_before_reset.copy_orig())
+                
                 if action_set is not None:
                     action_set = action_set.astype(int) # ensure action set is int so gets correctly converted to torch.LongTensor later
 
                 for t in range(self.max_steps):
                     if 'cuda' in self.device:
                         # extract input for DNN
-                        obs,scores = obs
+                        #obs,scores = obs
                         obs = extract_state_tensors_from_ecole_obs(obs, self.device) 
-                        top_k = 10 # temp write here
-                        sorted_indices = np.argsort(scores[action_set])
-                        # 选择最后 5 个元素的索引，即最大的 5 个值
-                        top_k_indices = sorted_indices[-top_k:]
-                        action_set = action_set[top_k_indices]
-                        print(action_set)
+                        # top_k = 10 # temp write here
+                        # sorted_indices = np.argsort(scores[action_set])
+                        # # 选择最后 5 个元素的索引，即最大的 5 个值
+                        # top_k_indices = sorted_indices[-top_k:]
+                        # action_set = action_set[top_k_indices]
+                        # print(action_set)
                     
                     # solve for this step
                     solve_start_t = time.time_ns()
@@ -514,7 +520,10 @@ class ReinforcementLearningValidator:
                             inference_start_t.record()
                         else:
                             inference_start_t = time.time_ns()
-                        action, action_idx = agent.action_select(action_set=action_set, obs=obs, munchausen_tau=0, epsilon=0, model=env.model, done=done, agent_idx=0)
+                        if agent_name =='strong_branching':        
+                            action, action_idx = agent.action_select_sb(action_set=action_set, obs=obs, munchausen_tau=0, epsilon=0, model=env.model, done=done, agent_idx=0)
+                        else:
+                            action, action_idx = agent.action_select(action_set=action_set, obs=obs, munchausen_tau=0, epsilon=0, model=env.model, done=done, agent_idx=0)
                         if 'cuda' in self.device:
                             torch.cuda.synchronize(device=self.device)
                             inference_end_t.record()
@@ -529,7 +538,7 @@ class ReinforcementLearningValidator:
                         # using default scip branching heuristic in configuring env
                         action = {}
 
-                    print(action)
+                    #print(action)
                     # take step in environments
                     step_start_t = time.time_ns()
                     obs, action_set, reward, done, info = env.step(action)
@@ -651,7 +660,8 @@ class ReinforcementLearningValidator:
                 log_str += ' | Cal. solve time: {} s'.format(round(abs(np.sum(self.episodes_log[agent]['elapsed_calibrated_solve_time'][-1])), 3))
                 # log_str += ' | Solve time: {} s'.format(round(abs(np.sum(self.episodes_log[agent]['elapsed_solve_time'][-1])), 3))
             else:
-                log_str += ' | Solve time: {} s'.format(round(abs(np.sum(self.episodes_log[agent]['solving_time'][-1])), 3))
+                #log_str += ' | Solve time: {} s'.format(round(abs(np.sum(self.episodes_log[agent]['solving_time'][-1])), 3))
+                log_str += ' | Solve time: {} s'.format(round(abs((self.episodes_log[agent]['solving_time_guass'][-1][-1])), 3))
         return log_str
 
 

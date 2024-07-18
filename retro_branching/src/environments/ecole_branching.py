@@ -1,5 +1,5 @@
 import retro_branching
-from retro_branching.rewards import DualBound, PrimalBound, PrimalDualGap, PrimalDualGapFrac, DualBoundFrac, PrimalDualBoundFracSum, PrimalBoundFrac, PrimalBoundGapFrac, DualBoundGapFrac, NormalisedLPGain, OptimalRetroTrajectoryNormalisedLPGain, RetroBranching, BinarySolved, RetroBranchingMCTSBackprop, BinaryFathomed
+from retro_branching.rewards import DualBound, DualBoundChange, PrimalBound, PrimalDualGap, PrimalDualGapFrac, DualBoundFrac, PrimalDualBoundFracSum, PrimalBoundFrac, PrimalBoundGapFrac, DualBoundGapFrac, NormalisedLPGain, OptimalRetroTrajectoryNormalisedLPGain, RetroBranching, BinarySolved, RetroBranchingMCTSBackprop, BinaryFathomed
 from retro_branching.observations import NodeBipariteWithSolutionLabels, NodeBipariteWith28VariableFeatures, NodeBipariteWith45VariableFeatures, NodeBipariteWith40VariableFeatures, NodeBipariteWith43VariableFeatures, NodeBipariteWith24VariableFeatures, NodeBipariteWith29VariableFeatures, NodeBipariteWith37VariableFeatures, NodeBipariteWithCustomFeatures
 from retro_branching.scip_params import default_scip_params, gasse_2019_scip_params, bfs_scip_params, dfs_scip_params, uct_scip_params, ml4co_anonymous_scip_params, ml4co_item_placement_scip_params, ml4co_load_balancing_scip_params
 # from retro_branching.environments import EcoleConfiguring
@@ -14,7 +14,7 @@ import time
 import pandas as pd
 from IPython.display import display
 import ecole
-from retro_branching.utils import ExploreThenStrongBranch,PureStrongBranch
+from retro_branching.utils import ExploreThenStrongBranch,PureStrongBranch, SovingTimeInfo
 
 class EcoleBranching(ecole.environment.Branching):
     def __init__(
@@ -61,13 +61,14 @@ class EcoleBranching(ecole.environment.Branching):
                            'num_nodes': -ecole.reward.NNodes(),
                            'lp_iterations': -ecole.reward.LpIterations(),
                            'solving_time': -ecole.reward.SolvingTime(),
+                           'solving_time_guass': SovingTimeInfo(),
                            } 
         if reward_function == 'default':
             pass
         elif reward_function == 'primal_integral':
             _reward_function['primal_integral'] = -ecole.reward.PrimalIntegral()
         elif reward_function == 'dual_integral':
-            _reward_function['dual_integral'] = -ecole.reward.DualIntegral()
+            _reward_function['dual_integral'] = -ecole.reward.DualIntegral() # default there is a - 
         elif reward_function == 'primal_dual_integral':
             _reward_function['primal_dual_integral'] = -ecole.reward.PrimalDualIntegral()
         elif reward_function == 'primal_dual_integral':
@@ -76,6 +77,8 @@ class EcoleBranching(ecole.environment.Branching):
              _reward_function['primal_bound'] = PrimalBound(sense=-1)
         elif reward_function == 'dual_bound':
             _reward_function['dual_bound'] = DualBound(sense=-1)
+        elif reward_function == 'dual_bound_change':
+            _reward_function['dual_bound_change'] = DualBoundChange(sense=-1)
         elif reward_function == 'primal_dual_gap':
              _reward_function['primal_dual_gap'] = PrimalDualGap()
         elif reward_function == 'dual_bound_frac':
@@ -149,9 +152,10 @@ class EcoleBranching(ecole.environment.Branching):
                      'num_nodes': ecole.reward.NNodes().cumsum(),
                      'lp_iterations': ecole.reward.LpIterations().cumsum(),
                      'solving_time': ecole.reward.SolvingTime().cumsum(),
-                     # 'primal_integral': ecole.reward.PrimalIntegral().cumsum(),
-                     # 'dual_integral': ecole.reward.DualIntegral().cumsum(),
-                     # 'primal_dual_integral': ecole.reward.PrimalDualIntegral(),
+                     'primal_integral': ecole.reward.PrimalIntegral().cumsum(),
+                     'dual_integral': ecole.reward.DualIntegral().cumsum(),
+                     'primal_dual_integral': ecole.reward.PrimalDualIntegral(),
+                     'solving_time_guass': SovingTimeInfo(),
                  })
         else:
             raise Exception(f'Unrecognised information_function {information_function}')

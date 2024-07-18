@@ -15,3 +15,4 @@ from retro_branching.src.rewards.primal_bound_gap_frac import PrimalBoundGapFrac
 from retro_branching.src.rewards.primal_dual_bound_frac_sum import PrimalDualBoundFracSum
 from retro_branching.src.rewards.primal_dual_bound_gap_frac_sum import PrimalDualBoundGapFracSum
 from retro_branching.src.rewards.primal_dual_gap_frac import PrimalDualGapFrac
+from retro_branching.src.rewards.dual_bound_change import DualBoundChange

@@ -237,7 +237,7 @@ class GAILAgent:
             logits = self.discriminator_network(state, candidates = action_set, num_candidates = len(action_set))
             # first 0 for first head output , second 0 for first of n, in this function only input one state
             prob =  torch.sigmoid(logits[0][0][action_idx.item()]) 
-            return -math.log(prob)
+            return math.log(prob)
 
 
 

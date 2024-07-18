@@ -33,7 +33,7 @@ def run(cfg: DictConfig):
     agents = {}
     if cfg.experiment.agent_name not in set(['pseudocost_branching', 'strong_branching', 'scip_branching']):
         # is an ML agent
-        if  'retro_branching_paper_validation_instances' in cfg.experiment.path_to_load_agent:
+        if  'retro_branching_paper_validation_agents' in cfg.experiment.path_to_load_agent:
             # this path use to load ./retro_branching_paper_validation_agents, just for run paper result
             path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
         else: 
@@ -149,7 +149,7 @@ def run_rl_validator(path,
     print('Initialised env.')
 
     # metrics
-    metrics = ['num_nodes', 'solving_time', 'lp_iterations']
+    metrics = ['num_nodes', 'solving_time', 'lp_iterations','solving_time_guass']
     print(f'Initialised metrics: {metrics}')
 
     # validator
@@ -174,7 +174,8 @@ def run_rl_validator(path,
     print(f'Initialised validator. Will save to: {validator.path_to_save}')
 
     # run validation tests
-    validator.test(len(files))
+    #validator.test(len(files))
+    validator.test(10)
     end = time.time()
     print(f'Finished path {path} validator in {end-start:.3f} s')
 
