@@ -24,6 +24,9 @@ import ray
 import pickle
 from itertools import zip_longest
 
+import wandb
+import os
+
 
 def _extract_reward(reward, extrinsic_reward, intrinsic_reward, intrinsic_extrinsic_combiner, episode_stats, multiple_rewards=False, train_predictor=True):
     if multiple_rewards:
@@ -222,6 +225,9 @@ def _run_episode(agent,
         return episode_id, _buffer, episode_stats
 
     episode_step_counter = 0
+    gail_rewards = []
+    extrinsic_rewards = []
+    total_rewards = []
     start_t = time.time()
     while not done:
         # prevent too long episode
@@ -239,7 +245,7 @@ def _run_episode(agent,
         # use actor to select action
         action, action_idx = agent.action_select(action_set=action_set, obs=obs)
 
-        gail_reward = agent.get_expert_reward(obs, action_set, action_idx)
+        gail_reward = agent.get_expert_reward(obs, action_set, action_idx) * gail_strength 
 
         # step env
         obs, action_set, reward, done, info = env.step(action)
@@ -247,7 +253,10 @@ def _run_episode(agent,
 
         _extrinsic_reward = reward[extrinsic_reward]
 
-        total_reward = _extrinsic_reward + gail_strength * gail_reward
+        total_reward = _extrinsic_reward +  gail_reward
+        gail_rewards.append(gail_reward)
+        extrinsic_rewards.append(_extrinsic_reward)
+        total_rewards.append(total_reward)
         # update buffer
         _buffer.action_idxs.append(action_idx)
         _buffer.logprobs.append(agent.action_logprob)
@@ -266,6 +275,9 @@ def _run_episode(agent,
     episode_stats['lp_iterations'] = info['lp_iterations']
     episode_stats['num_actor_steps'] = episode_step_counter
     episode_stats['episode_run_time'] = end_t - start_t
+    episode_stats['gail_rewards'] = np.sum(gail_rewards)
+    episode_stats['extrinsic_rewards'] = np.sum(extrinsic_rewards)
+    episode_stats['total_rewards'] = np.sum(total_rewards)
 
     return episode_id, _buffer, episode_stats
 
@@ -324,7 +336,7 @@ class GAILLearner(Learner):
                  debug_mode=False,
                  extrinsic_reward = 'dual_bound_change',
                  gail_strength = 0.1,
-                 name='ppo_learner'):
+                 name='gail_learner'):
         super(GAILLearner, self).__init__(agent, path_to_save, name)
 
         self.agent = agent
@@ -392,6 +404,29 @@ class GAILLearner(Learner):
         self.profile_time = profile_time
         self.debug_mode = debug_mode
 
+        os.environ["WANDB_API_KEY"] = 'c24806fd6d1ed14163b09712028263ea937b3898'
+        os.environ["WANDB_MODE"] = "online"
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project= self.name,
+
+            # track hyperparameters and run metadata
+                config={
+                    'lr_actor': self.lr_actor,
+                    'lr_critic': self.lr_critic,
+                    'lr_discriminator': self.lr_discriminator,
+                    'ppo_update_freq': self.ppo_update_freq,
+                    'ppo_epochs_per_update': self.ppo_epochs_per_update,
+                    'gamma': self.gamma,
+                    'batch_size': self.batch_size,
+                    'episode_log_freq': self.episode_log_freq,
+                    'epoch_log_freq': self.epoch_log_freq,
+                    'path_to_save': self.path_to_save,
+                    'extrinsic_reward': self.extrinsic_reward,
+                    'gail_strength': self.gail_strength,
+                    }
+        )
     def _save(self):
         if self.save_thread is not None:
             self.save_thread.join()
@@ -516,6 +551,11 @@ class GAILLearner(Learner):
         log_str += f', net epochs: {self.network_epoch_counter}'
         log_str += f' | Nodes: {self.episodes_log["num_nodes"][-1]}'
         log_str += f' | Steps: {self.episodes_log["num_steps"][-1]}'
+        log_str += f' | gail_rewards: {self.episodes_log["gail_rewards"][-1]}'
+        log_str += f' | extrinsic_rewards: {self.episodes_log["extrinsic_rewards"][-1]}'
+        log_str += f' | total_rewards: {self.episodes_log["total_rewards"][-1]}'
+        wandb.log({"episode": np.mean(self.episode_counter), "nodes": self.episodes_log["num_nodes"][-1], "steps":self.episodes_log["num_steps"][-1],\
+                    "gail_rewards": self.episodes_log["gail_rewards"][-1] , "extrinsic_rewards": self.episodes_log["extrinsic_rewards"][-1], "total_rewards": self.episodes_log["total_rewards"][-1]})
         # if isinstance(self.episodes_log['R'][-1], dict):
             # returns = {k: round(v, 3) for k, v in self.episodes_log['R'][-1].items()}
         # else:
@@ -530,6 +570,7 @@ class GAILLearner(Learner):
         log_str += f' | Episodes: {self.episode_counter}'
         log_str += f' | g_loss: {np.mean(self.g_loss_episode)}'
         log_str += f' | e_loss: {np.mean(self.e_loss_episode)}'
+        wandb.log({"ppo epochs": self.ppo_epoch_counter,"network epochs": self.network_epoch_counter,"expert loss": np.mean(self.e_loss_episode), "generator loss": np.mean(self.g_loss_episode)})
         return log_str
 
     def calc_discounted_rewards(self, rewards, dones):
@@ -687,8 +728,9 @@ class GAILLearner(Learner):
                 #update discriminator para
             self.discriminator_optimizer.zero_grad()
             
-            g_loss = self.discriminator_loss_function(g_o, torch.ones((g_o.shape[0]), device=self.agent.device))
-            e_loss = self.discriminator_loss_function(e_o, torch.zeros((e_o.shape[0]), device=self.agent.device))
+            # expert should be large to 1 , generate data should small to zero, ppo gail reward is log(D(s,a))
+            g_loss = self.discriminator_loss_function(g_o, torch.zeros((g_o.shape[0]), device=self.agent.device))
+            e_loss = self.discriminator_loss_function(e_o, torch.ones((e_o.shape[0]), device=self.agent.device))
             discrim_loss = g_loss + e_loss
                 
             discrim_loss.backward()
