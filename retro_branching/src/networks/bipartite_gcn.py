@@ -116,6 +116,7 @@ class BipartiteGCN(torch.nn.Module):
                  profile_time=False,
                  print_warning=True,
                  name='gnn',
+                 load_from_checkpoint=None,
                  use_state_atten=False,
                  atten_resid_pdrop=0.1,
                  atten_pdrop=0.1,
@@ -148,7 +149,7 @@ class BipartiteGCN(torch.nn.Module):
         self.device = device
 
         if config is  None:
-            print("_____________________None")
+            print("Config is None")
         else:
             print(config)
 
@@ -179,6 +180,11 @@ class BipartiteGCN(torch.nn.Module):
 
         self.profile_time = profile_time
         self.printed_warning = False
+
+        self.load_from_checkpoint = load_from_checkpoint
+        if self.load_from_checkpoint is not None:
+            self.load_state_dict(torch.load(self.load_from_checkpoint, map_location=self.device))
+            print(f'load net para from checkpoint: {self.load_from_checkpoint}')
         self.to(self.device)
 
     def init_from_config(self, config):

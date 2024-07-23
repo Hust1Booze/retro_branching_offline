@@ -27,7 +27,9 @@ if [ -n "$2" ]; then
   exit 1
 fi
 # 遍历文件夹，对每个checkpoint validate
-for item in "$total_path"/*; do
+#for item in "$total_path"/*; do
+#倒序遍历，从最新的checkpoint开始
+for item in $(find "$total_path" -mindepth 1 -maxdepth 1 -type d -name "checkpoint_*" | sort -V -r); do
   if [ -d "$item" ] && [[ $item == *"checkpoint"* ]]; then  # 如果是目录
     #echo "Found directory: $item"
     path="${item}/"

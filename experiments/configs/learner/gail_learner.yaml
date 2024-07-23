@@ -12,18 +12,19 @@ batch_size: 32
 gradient_accumulation_factor: 1
 actor_gradient_clipping_clip_value: null
 critic_gradient_clipping_clip_value: null
-ppo_update_freq: 10 # defualt 1 
+ppo_update_freq: 5 # defualt 1 
 ppo_epochs_per_update: 3 # default 1
-gamma: 0.95 # defaul 0.75, set 1 for Gail
+gamma: 1 # defaul 0.75, set 1 for Gail
 num_workers: null # default null
 episode_log_freq: 1
 epoch_log_freq: 1
 checkpoint_freq: 10
 path_to_save: null
-use_sqlite_database: False
+use_sqlite_database: True
 profile_time: False
 debug_mode: False
 extrinsic_reward: 'dual_bound_change'
 gail_strength: 0.01
+use_tree_mdp: True
 name: 'gail_learner'
 

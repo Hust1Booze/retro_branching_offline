@@ -4,7 +4,7 @@ defaults:
   - learner: gail_learner
 
 environment:
-  observation_function: 'default' #'43_var_features'
+  observation_function: 'default_and_cur_node' #'default' #'43_var_features'
   information_function: 'default'
   reward_function: 'dual_bound_change' #'retro_binary_fathomed'
   scip_params: 'gasse_2019'
@@ -27,3 +27,5 @@ experiment:
   branching: 'pure_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null # None 3
   num_samples: 120000
+
+  use_tree: True

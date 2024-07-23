@@ -20,6 +20,7 @@ actor:
   include_edge_features: True
 
   name: 'actor_netwrok'
+  load_from_checkpoint: null #'/home/liutf/code/retro_branching_offline/outputs/2024-07-19/16-07-09/gail_learner/gail_gnn/gail_gnn_0/checkpoint_190/actor_network_params.pkl'
 
 critic:
   emb_size: 64
@@ -48,6 +49,7 @@ critic:
   atten_heads: 8
 
   name: 'critic_network'
+  load_from_checkpoint: null #'/home/liutf/code/retro_branching_offline/outputs/2024-07-19/16-07-09/gail_learner/gail_gnn/gail_gnn_0/checkpoint_190/critic_network_params.pkl'
 
 discriminator:
   emb_size: 64
@@ -76,3 +78,4 @@ discriminator:
   atten_heads: 8
 
   name: 'discriminator_netwrok'
+  load_from_checkpoint: null #'/home/liutf/code/retro_branching_offline/outputs/2024-07-19/16-07-09/gail_learner/gail_gnn/gail_gnn_0/checkpoint_190/discriminator_network_params.pkl'

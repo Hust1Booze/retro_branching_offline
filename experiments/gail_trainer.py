@@ -1,4 +1,4 @@
-from retro_branching.learners import GAILLearner
+from retro_branching.learners import GAILLearner, TreeLearner
 from retro_branching.agents import GAILAgent
 from retro_branching.networks import BipartiteGCN
 from retro_branching.environments import EcoleBranching
@@ -82,12 +82,20 @@ def run(cfg: DictConfig):
                          reward_function=cfg.environment.reward_function,
                          scip_params=cfg.environment.scip_params)
     print(f'Initialised environment.')
-    learner = GAILLearner(agent,
-                 env,
-                 experience_loader,
-                 instances,
-                 ecole_seed=cfg.experiment.seed,
-                 **cfg.learner)
+    if cfg.experiment.use_tree:
+        learner = TreeLearner(agent,
+                    env,
+                    experience_loader,
+                    instances,
+                    ecole_seed=cfg.experiment.seed,
+                    **cfg.learner)
+    else:
+        learner = GAILLearner(agent,
+            env,
+            experience_loader,
+            instances,
+            ecole_seed=cfg.experiment.seed,
+            **cfg.learner)
     print(f'Initialised learner with params {learner.epochs_log}. Will save to {learner.path_to_save}')
 
     # train agent

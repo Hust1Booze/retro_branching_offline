@@ -465,8 +465,8 @@ class ReinforcementLearningValidator:
             # solve instance with agent
             self.run_episode(episode)
         
-        for agent in self.agents.values():
-            agent.BBTree.save_log()
+        # for agent in self.agents.values():
+        #     agent.BBTree.save_log()
         # save validation data
         self.save_checkpoint()
 

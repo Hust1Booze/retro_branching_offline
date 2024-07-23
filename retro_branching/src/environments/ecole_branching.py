@@ -1,6 +1,6 @@
 import retro_branching
 from retro_branching.rewards import DualBound, DualBoundChange, PrimalBound, PrimalDualGap, PrimalDualGapFrac, DualBoundFrac, PrimalDualBoundFracSum, PrimalBoundFrac, PrimalBoundGapFrac, DualBoundGapFrac, NormalisedLPGain, OptimalRetroTrajectoryNormalisedLPGain, RetroBranching, BinarySolved, RetroBranchingMCTSBackprop, BinaryFathomed
-from retro_branching.observations import NodeBipariteWithSolutionLabels, NodeBipariteWith28VariableFeatures, NodeBipariteWith45VariableFeatures, NodeBipariteWith40VariableFeatures, NodeBipariteWith43VariableFeatures, NodeBipariteWith24VariableFeatures, NodeBipariteWith29VariableFeatures, NodeBipariteWith37VariableFeatures, NodeBipariteWithCustomFeatures
+from retro_branching.observations import NodeBipariteWithSolutionLabels, NodeBipariteWith28VariableFeatures, NodeBipariteWith45VariableFeatures, NodeBipariteWith40VariableFeatures, NodeBipariteWith43VariableFeatures, NodeBipariteWith24VariableFeatures, NodeBipariteWith29VariableFeatures, NodeBipariteWith37VariableFeatures, NodeBipariteWithCustomFeatures, Focus_Node
 from retro_branching.scip_params import default_scip_params, gasse_2019_scip_params, bfs_scip_params, dfs_scip_params, uct_scip_params, ml4co_anonymous_scip_params, ml4co_item_placement_scip_params, ml4co_load_balancing_scip_params
 # from retro_branching.environments import EcoleConfiguring
 
@@ -162,6 +162,8 @@ class EcoleBranching(ecole.environment.Branching):
 
         if observation_function == 'default':    
             observation_function = (ecole.observation.NodeBipartite())
+        if observation_function == 'default_and_cur_node':    
+            observation_function = (ecole.observation.NodeBipartite(),Focus_Node())
         elif observation_function == 'label_solution_values':
             presolve_env = retro_branching.src.environments.ecole_configuring.EcoleConfiguring()
             observation_function = (NodeBipariteWithSolutionLabels(presolve_env=presolve_env))

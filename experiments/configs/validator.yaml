@@ -18,7 +18,7 @@ validator:
   
 experiment:
   agent_name: 'gail' #'strong_branching' # pseudocost_branching strong_branching scip_branching
-  path_to_load_agent: '/home/liutf/code/retro_branching_offline/outputs/2024-07-18/18-33-32/gail_learner/gail_gnn/gail_gnn_0/checkpoint_4' #'/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_agents'
+  path_to_load_agent: '/home/liutf/code/retro_branching_offline/outputs/2024-07-19/16-07-09/gail_learner/gail_gnn/gail_gnn_0/checkpoint_190' #'/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_agents'
   path_to_load_instances: '/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_instances'
   path_to_save: '/home/liutf/code/retro_branching_offline/retro_branching_paper_validation_agents'
   device: 'cuda:0' # cuda:0 cpu

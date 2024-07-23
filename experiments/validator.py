@@ -174,8 +174,8 @@ def run_rl_validator(path,
     print(f'Initialised validator. Will save to: {validator.path_to_save}')
 
     # run validation tests
-    #validator.test(len(files))
-    validator.test(10)
+    validator.test(len(files))
+    #validator.test(10)
     end = time.time()
     print(f'Finished path {path} validator in {end-start:.3f} s')
 

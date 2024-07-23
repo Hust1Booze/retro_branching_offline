@@ -235,7 +235,11 @@ def _run_episode(agent,
             break
 
         action_set = action_set.astype(int)
-        
+
+        if type(obs) is list:
+            obs, focus_node = obs
+            node_id, parent_id = focus_node
+
         # update buffer
         state = extract_state_tensors_from_ecole_obs(obs, action_set)
         _buffer.states.append(state)
@@ -262,6 +266,8 @@ def _run_episode(agent,
         _buffer.logprobs.append(agent.action_logprob)
         _buffer.rewards.append(total_reward)
         _buffer.dones.append(done)
+        _buffer.node_ids.append(node_id)
+        _buffer.parent_ids.append(parent_id)
 
         if debug_mode:
             print(f'step {episode_step_counter} || action: {action} | action_idx: {action_idx} | _extrinsic_reward: {_extrinsic_reward} | gail_reward: {gail_reward} | done: {done}')
@@ -282,6 +288,35 @@ def _run_episode(agent,
     return episode_id, _buffer, episode_stats
 
 
+
+
+class TreeRecorder:
+    """
+    Records the branch-and-bound tree from a custom brancher.
+
+    Every node in SCIP has a unique node ID. We identify nodes and their corresponding
+    attributes through the same ID system.
+    Depth groups keep track of groups of nodes at the same depth. This data structure
+    is used to speed up the computation of the subtree size.
+    """
+    def __init__(self):
+        self.tree = {}
+        self.depth_groups = []
+
+    def record_branching_decision(self, node_id, parent_id):
+        # Tree
+        self.tree[node_id] = {'parent': parent_id}
+
+    def calculate_subtree_sizes(self):
+        subtree_sizes = {id: 0 for id in self.tree.keys()}
+        for group in self.depth_groups[::-1]:
+            for id in group:
+                parent_id = self.tree[id]['parent']
+                subtree_sizes[id] += self.tree[id]['num_children']
+                if parent_id >= 0: subtree_sizes[parent_id] += subtree_sizes[id]
+        return subtree_sizes
+
+
 class RolloutBuffer:
     def __init__(self):
         self.reset()
@@ -293,11 +328,13 @@ class RolloutBuffer:
         self.logprobs = []
         self.rewards = []
         self.dones = []
+        self.node_ids = []
+        self.parent_ids = []
 
     def __len__(self):
         return len(self.states)
 
-class GAILLearner(Learner):
+class TreeLearner(Learner):
     def __init__(self,
                  agent,
                  env,
@@ -333,7 +370,7 @@ class GAILLearner(Learner):
                  gail_strength = 0.1,
                  use_tree_mdp = False,
                  name='gail_learner'):
-        super(GAILLearner, self).__init__(agent, path_to_save, name)
+        super(TreeLearner, self).__init__(agent, path_to_save, name)
 
         self.agent = agent
         self.agent.train()
@@ -402,11 +439,11 @@ class GAILLearner(Learner):
         self.debug_mode = debug_mode
 
         os.environ["WANDB_API_KEY"] = 'c24806fd6d1ed14163b09712028263ea937b3898'
-        os.environ["WANDB_MODE"] ="offline" # "online"
+        os.environ["WANDB_MODE"] ="online"
         # start a new wandb run to track this script
         wandb.init(
             # set the wandb project where this run will be logged
-            project= self.name,
+            project= 'tree_'+self.name,
 
             # track hyperparameters and run metadata
                 config={
@@ -570,16 +607,37 @@ class GAILLearner(Learner):
         wandb.log({"ppo epochs": self.ppo_epoch_counter,"network epochs": self.network_epoch_counter,"expert loss": np.mean(self.e_loss_episode), "generator loss": np.mean(self.g_loss_episode)})
         return log_str
 
-    def calc_discounted_rewards(self, rewards, dones):
+    def calc_discounted_rewards(self, rewards, dones, node_ids, parent_ids):
         discounted_rewards = []
         discounted_reward = 0
-        for reward, done in zip(reversed(rewards), reversed(dones)):
-            if done:
-                discounted_reward = 0
-            discounted_reward = reward + (self.gamma * discounted_reward)
-            discounted_rewards.insert(0, discounted_reward)
-        return discounted_rewards
 
+        # cal reward not in squenece but tree
+        children_to_parent = dict(zip(node_ids, parent_ids))
+        node_to_reward = dict(zip(node_ids, rewards))
+        parent_to_children = {}
+
+        for node_id, parent_id in zip(node_ids, parent_ids):
+            if parent_id not in parent_to_children:
+                parent_to_children[parent_id] = []
+            if node_id not in parent_to_children:
+                parent_to_children[node_id] = []
+            parent_to_children[parent_id].append(node_id)
+
+        for id in node_ids:
+            discounted_rewards.append(self.retro_get_reward(id, parent_to_children, node_to_reward))
+
+        return discounted_rewards
+    
+    def retro_get_reward(self, id, parent_to_children, node_to_reward):
+        children = parent_to_children[id]
+
+        reward = node_to_reward[id]
+        for child in children:
+            child_reward = self.retro_get_reward(child, parent_to_children, node_to_reward)
+            reward += self.gamma * child_reward
+
+        return reward
+    
     def whiten_rewards_array(self, rewards, eps=1e-4):
         rewards = np.array(rewards)
         if rewards.shape[0] > 1:
@@ -621,7 +679,7 @@ class GAILLearner(Learner):
 
             for _buffer in iterable_buffers:
                 episode_to_buffer[episode_id] = _buffer
-                episode_to_discounted_rewards[episode_id] = self.calc_discounted_rewards(_buffer.rewards, _buffer.dones)
+                episode_to_discounted_rewards[episode_id] = self.calc_discounted_rewards(_buffer.rewards, _buffer.dones, _buffer.node_ids, _buffer.parent_ids)
                 episode_id += 1
         if epoch_stats is not None:
             epoch_stats['discounted_returns'].append(np.mean([discounted_returns[0] for discounted_returns in episode_to_discounted_rewards.values()]))
