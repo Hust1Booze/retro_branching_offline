@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -o job.%j.out
 #SBATCH --partition=a100
-#SBATCH -J retro_branch_dt
+#SBATCH -J gail_trainer
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=2
 #SBATCH --gres=gpu:2

@@ -11,22 +11,37 @@
 source activate retro_branch_dt
 
 root_dir=$(pwd)
-root_dir='/lab/shiyh_lab/12332470/datas'
+#root_dir='/lab/shiyh_lab/12332470/datas'
 echo "root_dir:"${root_dir}
 
 # 使用date命令生成带日期时间的字符串
 current_time=$(date +"%Y-%m-%d_%H-%M-%S")
 
 # 构建带有日期时间的文件名
-filename="il_data__${current_time}.txt"
+filename="validator_log__${current_time}.txt"
 
 # checkpoint_path
-path=/lab/shiyh_lab/12332470/code/retro_branching_offline/outputs/2024-07-19/02-47-16/gail_learner/gail_gnn/gail_gnn_0/checkpoint_52
+total_path=/lab/shiyh_lab/12332470/code/retro_branching_offline/outputs/2024-07-19/02-47-16/gail_learner/gail_gnn/gail_gnn_0/
 
-python experiments/validator.py --config-path=configs --config-name=validator.yaml \
-      experiment.agent_name=gail \
-      experiment.path_to_load_agent=${path} \
-      experiment.path_to_load_instances=/lab/shiyh_lab/12332470/code/retro_branching_offline/retro_branching_paper_validation_instances  \
+# 遍历文件夹，对每个checkpoint validate
+#for item in "$total_path"/*; do
+#倒序遍历，从最新的checkpoint开始
+for item in $(find "$total_path" -mindepth 1 -maxdepth 1 -type d -name "checkpoint_*" | sort -V -r); do
+  if [ -d "$item" ] && [[ $item == *"checkpoint"* ]]; then  # 如果是目录
+    #echo "Found directory: $item"
+    path="${item}/"
+    #echo ${path}
+    if [ ! -d "$path/rl_validator" ]; then
+	echo "begin validate $path"
+    	python experiments/validator.py --config-path=configs --config-name=validator.yaml \
+      environment.observation_function=default  \
+      instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000 \
+      experiment.agent_name=gail experiment.path_to_load_agent=${path} \
+      experiment.path_to_load_instances=${root_dir}/retro_branching_paper_validation_instances \
       experiment.path_to_save=${path} \
-      experiment.device=cpu
+      experiment.device=cpu  | tee "${path}/${filename}"
+    fi    
+  fi
+done
+
 

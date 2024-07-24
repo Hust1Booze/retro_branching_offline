@@ -159,10 +159,9 @@ class EcoleBranching(ecole.environment.Branching):
                  })
         else:
             raise Exception(f'Unrecognised information_function {information_function}')
-
         if observation_function == 'default':    
             observation_function = (ecole.observation.NodeBipartite())
-        if observation_function == 'default_and_cur_node':    
+        elif observation_function == 'default_and_cur_node':    
             observation_function = (ecole.observation.NodeBipartite(),Focus_Node())
         elif observation_function == 'label_solution_values':
             presolve_env = retro_branching.src.environments.ecole_configuring.EcoleConfiguring()
