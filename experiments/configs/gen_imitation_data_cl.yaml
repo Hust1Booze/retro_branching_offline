@@ -8,6 +8,6 @@ experiment:
   seed: 0
   path_to_save: '/data/ltf/code/retro_branching_offline/datasets'
   num_cpus_factor: 10
-  branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
-  min_samples: 126000
+  branching: 'pure_strong_branch_with_idx' # 'pure_strong_branch' 'explore_then_strong_branch'
+  min_samples: 126000 #126000
   max_steps: null # None 3

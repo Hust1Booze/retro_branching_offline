@@ -1,4 +1,5 @@
 from retro_branching.src.networks.multi_headed_separate_params_bipartite_gcn import MultiHeadedSeparateParamsBipartiteGCN
 from retro_branching.src.networks.bipartite_gcn import BipartiteGCN
+from retro_branching.src.networks.bipartite_gcn_cl import BipartiteGCN_Cl
 from retro_branching.src.networks.bipartite_graph_convolution import BipartiteGraphConvolution
 from retro_branching.src.networks.bipartite_gcn_no_heads import BipartiteGCNNoHeads

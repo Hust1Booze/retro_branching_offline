@@ -358,12 +358,14 @@ class BipartiteNodeData(torch_geometric.data.Data):
         super().__init__()
         if constraint_features is not None:
             self.constraint_features = torch.FloatTensor(constraint_features)
+            self.num_constraints = len(constraint_features)
         if edge_indices is not None:
             self.edge_index = torch.LongTensor(edge_indices.astype(np.int64))
         if edge_features is not None:
             self.edge_attr = torch.FloatTensor(edge_features).unsqueeze(1)
         if variable_features is not None:
             self.variable_features = torch.FloatTensor(variable_features)
+            self.num_variables = len(variable_features)
         if candidates is not None:
             self.candidates = torch.LongTensor(candidates)
             self.num_candidates = len(candidates)
@@ -430,6 +432,51 @@ class GraphDataset(torch_geometric.data.Dataset):
 
 
 
+class TripleGraphDataset(torch_geometric.data.Dataset):
+    """
+    This class encodes a collection of graphs, as well as a method to load such graphs from the disk.
+    It can be used in turn by the data loaders provided by pytorch geometric.
+    """
+    def __init__(self, sample_files):
+        super().__init__(root=None, transform=None, pre_transform=None)
+        self.sample_files = sample_files
+
+    def len(self):
+        return len(self.sample_files)
+
+    def get(self, index):
+        """
+        This method loads a node bipartite graph observation as saved on the disk during data collection.
+        """
+        with gzip.open(self.sample_files[index], 'rb') as f:
+            sample = pickle.load(f)
+
+        triple_graph = []
+        #sample : node, brother_node, parent_node = 
+        for node in sample:
+            sample_observation, curr_idx, parent_idx, sample_action, sample_action_set, sample_scores = node
+            
+            # We note on which variables we were allowed to branch, the scores as well as the choice 
+            # taken by strong branching (relative to the candidates)
+            candidates = torch.LongTensor(np.array(sample_action_set, dtype=np.int32))
+            try:
+                candidate_scores = torch.FloatTensor([sample_scores[j] for j in candidates])
+                score = []
+            except (TypeError, IndexError):
+                # only given one score and not in a list so not iterable
+                score = torch.FloatTensor([sample_scores])
+                candidate_scores = []
+            candidate_choice = torch.where(candidates == sample_action)[0][0]
+
+            graph = BipartiteNodeData(sample_observation.row_features, sample_observation.edge_features.indices, 
+                                    sample_observation.edge_features.values, sample_observation.column_features,
+                                    candidates, candidate_choice, candidate_scores, score)
+            
+            # We must tell pytorch geometric how many nodes there are, for indexing purposes
+            graph.num_nodes = sample_observation.row_features.shape[0]+sample_observation.column_features.shape[0]
+
+            triple_graph.append(graph)
+        return triple_graph
 
 
 

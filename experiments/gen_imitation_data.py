@@ -1,5 +1,6 @@
 from retro_branching.utils import gen_co_name, ExploreThenStrongBranch, PureStrongBranch, seed_stochastic_modules_globally
 from retro_branching.scip_params import gasse_2019_scip_params, default_scip_params
+from retro_branching.observations import NodeBipariteWithIdx
 
 import ecole
 
@@ -27,6 +28,7 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 import shutil
 hydra.HYDRA_FULL_ERROR = 1
+
 
 @ray.remote
 # def run_sampler(co_class, branching, nrows, ncols, max_steps=None, instance=None):
@@ -68,11 +70,17 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
         env = ecole.environment.Branching(observation_function=(PureStrongBranch(), 
                                                                 ecole.observation.NodeBipartite()), 
                                           scip_params=scip_params)
+    elif branching == 'pure_strong_branch_with_idx':
+        env = ecole.environment.Branching(observation_function=(PureStrongBranch(), 
+                                                                NodeBipariteWithIdx()), 
+                                          scip_params=scip_params)
     else:
         raise Exception('Unrecognised branching {}'.format(branching))
 
     observation, action_set, _, done, _ = env.reset(instance)
     data_to_save = []
+    # dick with node_idx as key
+    idx_data = {}
     t = 0
     while not done:
         if branching == 'explore_then_strong_branch':
@@ -82,6 +90,10 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
             # always save samples since always using strong branching
             save_samples = True
             scores, node_observation = observation
+        elif branching == 'pure_strong_branch_with_idx':
+            save_samples = False
+            scores, obs_with_idx = observation
+            node_observation, curr_idx, parent_idx = obs_with_idx  
         else:
             raise Exception('Unrecognised branching {}'.format(branching))
 
@@ -90,6 +102,9 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
         if save_samples:
             data = [node_observation, action, action_set, scores]
             data_to_save.append(data)
+        if branching == 'pure_strong_branch_with_idx':
+            idx_data[curr_idx] = [node_observation, curr_idx, parent_idx, action, action_set, scores]
+            #print(f'curr_idx {curr_idx} parent_idx {parent_idx}')
 
         observation, action_set, _, done, _ = env.step(action)
         t += 1
@@ -97,6 +112,18 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
             if t >= max_steps:
                 # stop episode
                 break
+    if branching == 'pure_strong_branch_with_idx':
+        # return format [node_obs, brother_obs, parent_obs, action, action_set, scores]
+        #print(idx_data.keys())
+        for key, value in idx_data.items():
+            node_observation, curr_idx, parent_idx, action, action_set, scores = value
+            if parent_idx in idx_data:
+                # find brother
+                for _key, _value in idx_data.items():
+                    if _value[2] == parent_idx and _value[1] != curr_idx:
+                        brother_idx = _value[1]
+                        data_to_save.append([idx_data[curr_idx], idx_data[brother_idx], idx_data[parent_idx]])
+
 
     return data_to_save
 
@@ -111,7 +138,7 @@ def init_save_dir(path, name):
     return _path+foldername
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
+@hydra.main(config_path='configs', config_name='gen_imitation_data_cl.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -172,12 +199,12 @@ def run(cfg: DictConfig):
                     pickle.dump(data, f)
                 sample_counter += 1
 
-        loop_counter += 1
-
-        run_time = round(time.time() - orig_start, 3)
-        time_per_sample = round(run_time / sample_counter, 3)
-        time_per_parallel_loop = round((run_time / loop_counter), 3)
-        print(f'Generated {sample_counter} of {cfg.experiment.min_samples} samples after {epoch_counter} epochs / {run_time} s -> mean time per sample: {time_per_sample} s, mean time per parallel loop: {time_per_parallel_loop} s | Saved to {path}')
+        if sample_counter is not 0 :
+            loop_counter += 1
+            run_time = round(time.time() - orig_start, 3)
+            time_per_sample = round(run_time / sample_counter, 3)
+            time_per_parallel_loop = round((run_time / loop_counter), 3)
+            print(f'Generated {sample_counter} of {cfg.experiment.min_samples} samples after {epoch_counter} epochs / {run_time} s -> mean time per sample: {time_per_sample} s, mean time per parallel loop: {time_per_parallel_loop} s | Saved to {path}')
 
 
 if __name__ == '__main__':

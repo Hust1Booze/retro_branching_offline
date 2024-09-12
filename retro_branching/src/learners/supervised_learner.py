@@ -115,8 +115,12 @@ class SupervisedLearner(Learner):
             epoch_stats['train_logits'], epoch_stats['train_target'], epoch_stats['train_num_candidates'], = [], [], []
             epoch_stats['valid_logits'], epoch_stats['valid_target'], epoch_stats['valid_num_candidates'], = [], [], []
 
-            epoch_stats = self.run_epoch(data_loader=self.train_loader, optimizer=self.optimizer, epoch_stats=epoch_stats)
-            epoch_stats = self.run_epoch(data_loader=self.valid_loader, optimizer=None, epoch_stats=epoch_stats)
+            if self.loss_function is 'infoNCE':
+                epoch_stats = self.run_epoch_cl(data_loader=self.train_loader, optimizer=self.optimizer, epoch_stats=epoch_stats)
+                epoch_stats = self.run_epoch_cl(data_loader=self.valid_loader, optimizer=None, epoch_stats=epoch_stats)
+            else:
+                epoch_stats = self.run_epoch(data_loader=self.train_loader, optimizer=self.optimizer, epoch_stats=epoch_stats)
+                epoch_stats = self.run_epoch(data_loader=self.valid_loader, optimizer=None, epoch_stats=epoch_stats)
 
             self.update_epoch_log(epoch_stats)
             if self.epoch_counter % self.epoch_log_frequency == 0 and self.epoch_log_frequency != float('inf'):
@@ -233,3 +237,58 @@ class SupervisedLearner(Learner):
         return epoch_stats
 
 
+    def run_epoch_cl(self, data_loader, optimizer, epoch_stats):
+        '''If optimizer is not None, runs training epoch. If None, runs validation epoch.'''
+        # DEBUG
+        # torch.autograd.set_detect_anomaly(True)
+
+        saved_logits_and_target = False # track if saved for first batch of epoch
+        start = time.time()
+        with torch.set_grad_enabled(optimizer is not None):
+            for batch in data_loader:
+                
+                batch_0 = batch[0].to(self.agent.device)
+                batch_1 = batch[1].to(self.agent.device)
+                batch_2 = batch[2].to(self.agent.device)
+                # print(f'\nbatch: {batch}\n constraint_features: {batch.constraint_features.shape} {batch.constraint_features}\n variable_features: {batch.variable_features.shape} {batch.variable_features}')
+
+                # Compute the logits (i.e. pre-softmax activations) according to the agent policy on the concatenated graphs
+                loss = self.agent(batch_0, batch_1, batch_2)
+
+                if optimizer is not None:
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                # true_scores = pad_tensor(batch.candidate_scores, batch.num_candidates)
+                # true_bestscore = true_scores.max(dim=-1, keepdims=True).values
+                
+                # predicted_bestindex = logits.max(dim=-1, keepdims=True).indices
+                # accuracy = (true_scores.gather(-1, predicted_bestindex) == true_bestscore).float().mean().item()
+
+                if optimizer is not None:
+                    # training
+                    epoch_stats['mean_train_loss'] += loss.item() 
+                    print(f'loss: {loss.item()}')
+                    # epoch_stats['mean_train_acc'] += accuracy * batch.num_graphs
+                    epoch_stats['n_train_samples_processed'] += 1
+                else:
+                    # validation
+                    epoch_stats['mean_valid_loss'] += loss.item() 
+                    # epoch_stats['mean_valid_acc'] += accuracy * batch.num_graphs
+                    epoch_stats['n_valid_samples_processed'] += 1
+
+        # finished epoch
+        end = time.time()
+        if optimizer is not None:
+            # training
+            epoch_stats['train_epoch_run_time'] = end - start
+            epoch_stats['mean_train_loss'] /= epoch_stats['n_train_samples_processed']
+            # epoch_stats['mean_train_acc'] /= epoch_stats['n_train_samples_processed']
+        else:
+            # validation
+            epoch_stats['valid_epoch_run_time'] = end - start
+            epoch_stats['mean_valid_loss'] /= epoch_stats['n_valid_samples_processed']
+            # epoch_stats['mean_valid_acc'] /= epoch_stats['n_valid_samples_processed']
+
+        return epoch_stats

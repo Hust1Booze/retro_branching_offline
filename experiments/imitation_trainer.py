@@ -1,6 +1,6 @@
 from retro_branching.learners import SupervisedLearner
-from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads
-from retro_branching.utils import GraphDataset, seed_stochastic_modules_globally, gen_co_name
+from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads, BipartiteGCN_Cl
+from retro_branching.utils import GraphDataset, TripleGraphDataset, seed_stochastic_modules_globally, gen_co_name
 from retro_branching.loss_functions import CrossEntropy, JensenShannonDistance, KullbackLeiblerDivergence, BinaryCrossEntropyWithLogits, BinaryCrossEntropy, MeanSquaredError
 
 import torch_geometric 
@@ -9,7 +9,7 @@ import glob
 import numpy as np
 import os
 import random
-
+import torch
 
 import hydra
 from hydra.core.hydra_config import HydraConfig
@@ -18,7 +18,7 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
+@hydra.main(config_path='configs', config_name='cl.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -32,7 +32,22 @@ def run(cfg: DictConfig):
     print(f'~'*80)
 
     # initialise imitation agent
-    agent = BipartiteGCN(device=cfg.experiment.device, **cfg.network) # None 'add'
+    if cfg.experiment.path_to_load_agent is not '':
+        path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+        config = path + 'config.json'
+        agent = BipartiteGCN_Cl(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)
+        for network_name, network in agent.get_networks().items():
+            if network is not None:
+                try:
+                    # see if network saved under same var as 'network_name'
+                    agent.__dict__[network_name].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+                except KeyError:
+                    # network saved under generic 'network' var (as in Agent class)
+                    agent.__dict__['network'].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+            else:
+                print(f'{network_name} is None.')
+    else:
+        agent = BipartiteGCN_Cl(device=cfg.experiment.device, **cfg.network) # None 'add'
     agent.to(cfg.experiment.device)
     agent.train() # turn on train mode
     print('Initialised imitation agent.')
@@ -50,11 +65,17 @@ def run(cfg: DictConfig):
     train_files = sample_files[:int(0.83*len(sample_files))]
     valid_files = sample_files[int(0.83*len(sample_files)):]
 
-    # init training and validaton data loaders
-    train_data = GraphDataset(train_files)
-    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
-    valid_data = GraphDataset(valid_files)
-    valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False)
+    if cfg.learner.loss_function == 'infoNCE':
+        train_data = TripleGraphDataset(train_files)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
+        valid_data = TripleGraphDataset(valid_files)
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False) 
+    else:  
+        # init training and validaton data loaders
+        train_data = GraphDataset(train_files)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
+        valid_data = GraphDataset(valid_files)
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False)
     print('Initialised training and validation data loaders.')
 
     # init learner
@@ -66,6 +87,8 @@ def run(cfg: DictConfig):
         loss_function = JensenShannonDistance()
     elif cfg.learner.loss_function == 'kullback_leibler_divergence':
         loss_function = KullbackLeiblerDivergence()
+    elif cfg.learner.loss_function == 'infoNCE':
+        loss_function = None
     else:
         raise Exception(f'Unrecognised loss_function {cfg.learner.loss_function}')
     learner = SupervisedLearner(agent=agent,
