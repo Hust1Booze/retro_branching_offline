@@ -9,10 +9,10 @@ instances:
 
 experiment:
   seed: 0
-  device: 'cuda:1'
-  path_to_load_imitation_data: '/scratch/datasets/retro_branching/strong_branching'
-  path_to_save: '/scratch/datasets/retro_branching'
-  branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
+  device: 'cuda:0'
+  path_to_load_imitation_data: '/data/ltf/code/retro_branching_offline/datasets'
+  path_to_save: './'
+  branching: 'pure_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null # None 3
   num_samples: 120000
   num_epochs: 1000
@@ -23,6 +23,6 @@ learner:
   loss_function: 'cross_entropy' # mean_squared_error cross_entropy jensen_shannon_distance kullback_leibler_divergence
   lr: 0.0001
   epoch_log_frequency: 1
-  checkpoint_frequency: 1
-  name: 'supervised_learner'
+  checkpoint_log_frequency: 1
+  name: 'il'
   

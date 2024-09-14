@@ -115,7 +115,7 @@ class SupervisedLearner(Learner):
             epoch_stats['train_logits'], epoch_stats['train_target'], epoch_stats['train_num_candidates'], = [], [], []
             epoch_stats['valid_logits'], epoch_stats['valid_target'], epoch_stats['valid_num_candidates'], = [], [], []
 
-            if self.loss_function is 'infoNCE':
+            if self.loss_function is None:
                 epoch_stats = self.run_epoch_cl(data_loader=self.train_loader, optimizer=self.optimizer, epoch_stats=epoch_stats)
                 epoch_stats = self.run_epoch_cl(data_loader=self.valid_loader, optimizer=None, epoch_stats=epoch_stats)
             else:
@@ -269,7 +269,7 @@ class SupervisedLearner(Learner):
                 if optimizer is not None:
                     # training
                     epoch_stats['mean_train_loss'] += loss.item() 
-                    print(f'loss: {loss.item()}')
+                    #print(f'loss: {loss.item()}')
                     # epoch_stats['mean_train_acc'] += accuracy * batch.num_graphs
                     epoch_stats['n_train_samples_processed'] += 1
                 else:

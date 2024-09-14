@@ -18,7 +18,7 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='cl.yaml')
+@hydra.main(config_path='configs', config_name='il.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -32,21 +32,27 @@ def run(cfg: DictConfig):
     print(f'~'*80)
 
     # initialise imitation agent
-    if cfg.experiment.path_to_load_agent is not '':
-        path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
-        config = path + 'config.json'
-        agent = BipartiteGCN_Cl(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)
-        for network_name, network in agent.get_networks().items():
-            if network is not None:
-                try:
-                    # see if network saved under same var as 'network_name'
-                    agent.__dict__[network_name].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
-                except KeyError:
-                    # network saved under generic 'network' var (as in Agent class)
-                    agent.__dict__['network'].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
-            else:
-                print(f'{network_name} is None.')
+    if cfg.learner.loss_function != 'infoNCE':
+        if cfg.experiment.path_to_load_agent is not '':
+            path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+            config = path + 'config.json'
+            agent = BipartiteGCN_Cl(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)
+            for network_name, network in agent.get_networks().items():
+                if network is not None:
+                    try:
+                        # see if network saved under same var as 'network_name'
+                        agent.__dict__[network_name].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+                    except KeyError:
+                        # network saved under generic 'network' var (as in Agent class)
+                        agent.__dict__['network'].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+                else:
+                    print(f'{network_name} is None.')
+            print(f'Train il with cl pre-train model in {config}')
+        else:
+            print('Train il')
+            agent = BipartiteGCN_Cl(device=cfg.experiment.device, **cfg.network) # None 'add'
     else:
+        print('Train CL')
         agent = BipartiteGCN_Cl(device=cfg.experiment.device, **cfg.network) # None 'add'
     agent.to(cfg.experiment.device)
     agent.train() # turn on train mode
@@ -60,6 +66,7 @@ def run(cfg: DictConfig):
     if not os.path.isdir(path):
         raise Exception(f'Path {path} does not exist')
     files = np.array(glob.glob(path+'*.pkl'))
+    print(f'there is total {len(files)} samples')
     sample_files = files[:cfg.experiment.num_samples]
     files = [] # clear memory
     train_files = sample_files[:int(0.83*len(sample_files))]
