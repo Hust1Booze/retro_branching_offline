@@ -12,9 +12,11 @@ root_dir=$(pwd)
 root_dir='/lab/shiyh_lab/12332470/code/contrastive/retro_branching_offline/datasets'
 echo "root_dir:"${root_dir}
 
-
-python experiments/gen_imitation_data.py --config-path=configs --config-name=gen_imitation_data.yaml experiment.path_to_save=${root_dir} instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000
+# set_coverinh
 #python experiments/gen_imitation_data.py --config-path=configs --config-name=gen_imitation_data.yaml experiment.path_to_save=${root_dir} instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000
 python experiments/gen_imitation_data.py --config-path=configs --config-name=gen_imitation_data_cl.yaml experiment.path_to_save=${root_dir} instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000
-#python experiments/gen_imitation_data.py --config-path=configs --config-name=gen_imitation_data_cl.yaml experiment.path_to_save=${root_dir} instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000
+
+# maximum_independent_set
+#python experiments/gen_imitation_data.py --config-path=configs --config-name=gen_imitation_data.yaml experiment.path_to_save=${root_dir} instances.co_class=maximum_independent_set instances.co_class_kwargs.n_nodes=500 
+#python experiments/gen_imitation_data.py --config-path=configs --config-name=gen_imitation_data_cl.yaml experiment.path_to_save=${root_dir} instances.co_class=maximum_independent_set instances.co_class_kwargs.n_nodes=500
 

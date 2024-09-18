@@ -70,8 +70,8 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
         env = ecole.environment.Branching(observation_function=(PureStrongBranch(), 
                                                                 ecole.observation.NodeBipartite()), 
                                           scip_params=scip_params)
-    elif branching == 'pure_strong_branch_with_idx':
-        env = ecole.environment.Branching(observation_function=(PureStrongBranch(), 
+    elif branching == 'explore_then_strong_branch_idx':
+        env = ecole.environment.Branching(observation_function=(ExploreThenStrongBranch(expert_probability=0.05),  
                                                                 NodeBipariteWithIdx()), 
                                           scip_params=scip_params)
     else:
@@ -90,9 +90,8 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
             # always save samples since always using strong branching
             save_samples = True
             scores, node_observation = observation
-        elif branching == 'pure_strong_branch_with_idx':
-            save_samples = False
-            scores, obs_with_idx = observation
+        elif branching == 'explore_then_strong_branch_idx':
+            (scores, save_samples), obs_with_idx = observation
             node_observation, curr_idx, parent_idx = obs_with_idx  
         else:
             raise Exception('Unrecognised branching {}'.format(branching))
@@ -102,8 +101,8 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
         if save_samples:
             data = [node_observation, action, action_set, scores]
             data_to_save.append(data)
-        if branching == 'pure_strong_branch_with_idx':
-            idx_data[curr_idx] = [node_observation, curr_idx, parent_idx, action, action_set, scores]
+        if branching == 'explore_then_strong_branch_idx':
+                idx_data[curr_idx] = [node_observation, curr_idx, parent_idx, action, action_set, scores, save_samples]
             #print(f'curr_idx {curr_idx} parent_idx {parent_idx}')
 
         observation, action_set, _, done, _ = env.step(action)
@@ -112,17 +111,18 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
             if t >= max_steps:
                 # stop episode
                 break
-    if branching == 'pure_strong_branch_with_idx':
+    if branching == 'explore_then_strong_branch_idx':
         # return format [node_obs, brother_obs, parent_obs, action, action_set, scores]
         #print(idx_data.keys())
         for key, value in idx_data.items():
-            node_observation, curr_idx, parent_idx, action, action_set, scores = value
-            if parent_idx in idx_data:
-                # find brother
-                for _key, _value in idx_data.items():
-                    if _value[2] == parent_idx and _value[1] != curr_idx:
-                        brother_idx = _value[1]
-                        data_to_save.append([idx_data[curr_idx], idx_data[brother_idx], idx_data[parent_idx]])
+            node_observation, curr_idx, parent_idx, action, action_set, scores, save_samples = value
+            if save_samples:
+                if parent_idx in idx_data:
+                    # find brother
+                    for _key, _value in idx_data.items():
+                        if _value[2] == parent_idx and _value[1] != curr_idx:
+                            brother_idx = _value[1]
+                            data_to_save.append([idx_data[curr_idx][:-1], idx_data[brother_idx][:-1], idx_data[parent_idx][:-1]])
 
 
     return data_to_save
