@@ -112,6 +112,7 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
                 # stop episode
                 break
     if branching == 'explore_then_strong_branch_idx':
+        data_to_save = []
         # return format [node_obs, brother_obs, parent_obs, action, action_set, scores]
         #print(idx_data.keys())
         for key, value in idx_data.items():
