@@ -1,4 +1,4 @@
-from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads
+from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads, BipartiteGCN_Cl
 
 import torch
 import torch_geometric
@@ -74,7 +74,7 @@ class Agent:
 
         # TEMPORARY: For where have different networks implementations
         if 'num_heads' in net_config.keys():
-            NET = BipartiteGCN
+            NET = BipartiteGCN_Cl
         else:
             NET = BipartiteGCNNoHeads
 
@@ -93,9 +93,9 @@ class Agent:
     def forward(self, obs, **kwargs):
         '''Useful for compatability with some DQN custom test scripts.'''
         if type(obs) == tuple:
-            return self.network(*obs, print_warning=self.print_forward_dim_warning)
+            return self.network(*obs)
         else:
-            return self.network(obs, print_warning=self.print_forward_dim_warning)
+            return self.network(obs)
 
     def before_reset(self, model):
         pass

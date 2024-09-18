@@ -425,6 +425,9 @@ class BipartiteGCN_Cl(torch.nn.Module):
                 t = time.time() - start
                 print(f'to_t: {t*1e3:.3f} ms')
 
+            variable_features, constraint_features = self.pass_gnn(constraint_features, edge_indices, edge_features, variable_features)
+            return self.pass_head(variable_features)
+
 
 
     def pass_gnn(self, constraint_features, edge_indices, edge_features, variable_features, print_warning=True):

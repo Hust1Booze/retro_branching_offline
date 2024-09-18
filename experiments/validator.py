@@ -26,14 +26,19 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
+@hydra.main(config_path='configs', config_name='validator.yaml')
 def run(cfg: DictConfig):
      
     # initialise the agent
     agents = {}
     if cfg.experiment.agent_name not in set(['pseudocost_branching', 'strong_branching', 'scip_branching']):
         # is an ML agent
-        path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+        if  'retro_branching_paper_validation_agents' in cfg.experiment.path_to_load_agent:
+            # this path use to load ./retro_branching_paper_validation_agents, just for run paper result
+            path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+        else: 
+            # this path to load out train agent
+            path = cfg.experiment.path_to_load_agent+ '/'
         config = path + 'config.json'
         agent = Agent(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)
         for network_name, network in agent.get_networks().items():
