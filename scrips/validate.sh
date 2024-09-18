@@ -39,7 +39,7 @@ for item in $(find "$total_path" -mindepth 1 -maxdepth 1 -type d -name "checkpoi
     	python experiments/validator.py --config-path=configs --config-name=validator.yaml \
       environment.observation_function=default  \
       instances.co_class=set_covering instances.co_class_kwargs.n_rows=500 instances.co_class_kwargs.n_cols=1000 \
-      experiment.agent_name=gail experiment.path_to_load_agent=${path} \
+      experiment.agent_name=il experiment.path_to_load_agent=${path} \
       experiment.path_to_load_instances=${root_dir}/retro_branching_paper_validation_instances \
       experiment.path_to_save=${path}  | tee "${path}/${filename}"
     fi    

@@ -14,9 +14,9 @@ experiment:
   path_to_save: './'
   branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null # None 3
-  num_samples: 120000
-  num_epochs: 1000
-  path_to_load_agent: ''
+  num_samples: 12000 # 10% of GCNN
+  num_epochs: 100
+  path_to_load_agent: '/data/ltf/code/retro_branching_offline/outputs/pre_train_models/cl_10/gnn/gnn_0/checkpoint_2'
   
 learner:
   imitation_target: 'expert_actions' # 'expert_scores' 'expert_score' 'expert_actions' 'expert_bipartite_ranking'

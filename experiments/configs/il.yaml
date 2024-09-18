@@ -14,7 +14,7 @@ experiment:
   path_to_save: './'
   branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null # None 3
-  num_samples: 120000
+  num_samples: 12000
   num_epochs: 100
   path_to_load_agent: ''
   

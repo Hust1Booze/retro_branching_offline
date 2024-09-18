@@ -18,7 +18,7 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='cl.yaml')
+@hydra.main(config_path='configs', config_name='il.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -34,19 +34,21 @@ def run(cfg: DictConfig):
     # initialise imitation agent
     if cfg.learner.loss_function != 'infoNCE':
         if cfg.experiment.path_to_load_agent is not '':
-            path = cfg.experiment.path_to_load_agent + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+            path = cfg.experiment.path_to_load_agent + '/'
             config = path + 'config.json'
-            agent = BipartiteGCN_Cl(device=cfg.experiment.device, config=config, name=cfg.experiment.agent_name)
-            for network_name, network in agent.get_networks().items():
-                if network is not None:
-                    try:
-                        # see if network saved under same var as 'network_name'
-                        agent.__dict__[network_name].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
-                    except KeyError:
-                        # network saved under generic 'network' var (as in Agent class)
-                        agent.__dict__['network'].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
-                else:
-                    print(f'{network_name} is None.')
+            agent = BipartiteGCN_Cl(device=cfg.experiment.device, config=config, name=cfg.learner.name)
+
+            agent.load_state_dict(torch.load(path+f'/networks_params.pkl', map_location=cfg.experiment.device))
+            # for network_name, network in agent.get_networks().items():
+            #     if network is not None:
+            #         try:
+            #             # see if network saved under same var as 'network_name'
+            #             agent.__dict__[network_name].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+            #         except KeyError:
+            #             # network saved under generic 'network' var (as in Agent class)
+            #             agent.__dict__['network'].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
+            #     else:
+            #         print(f'{network_name} is None.')
             print(f'Train il with cl pre-train model in {config}')
         else:
             print('Train il')
@@ -74,15 +76,15 @@ def run(cfg: DictConfig):
 
     if cfg.learner.loss_function == 'infoNCE':
         train_data = TripleGraphDataset(train_files)
-        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=64, shuffle=True)
         valid_data = TripleGraphDataset(valid_files)
-        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False) 
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=64, shuffle=False) 
     else:  
         # init training and validaton data loaders
         train_data = GraphDataset(train_files)
-        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=64, shuffle=True)
         valid_data = GraphDataset(valid_files)
-        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=512, shuffle=False)
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=64, shuffle=False)
     print('Initialised training and validation data loaders.')
 
     # init learner

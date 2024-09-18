@@ -57,6 +57,8 @@ def run(cfg: DictConfig):
         cfg.experiment.device = 'cpu'
         agent = cfg.experiment.agent_name
     path_to_save_baseline = cfg.experiment.path_to_save + f'/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/{cfg.experiment.agent_name}/'
+    if cfg.experiment.agent_name not in set(['pseudocost_branching', 'strong_branching', 'scip_branching']):
+        path_to_save_baseline = path
     agents[path_to_save_baseline] = agent
     print(f'Initialised agent and agent-to-path dict: {agents}')
 
