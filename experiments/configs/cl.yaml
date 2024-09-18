@@ -4,18 +4,18 @@ defaults:
 instances:
   co_class: 'set_covering'
   co_class_kwargs:
-    'n_rows': 165
-    'n_cols': 230
+    'n_rows': 500
+    'n_cols': 1000
 
 experiment:
   seed: 0
   device: 'cuda:0'
   path_to_load_imitation_data: '/data/ltf/code/retro_branching_offline/datasets'
   path_to_save: './'
-  branching: 'pure_strong_branch_with_idx' # 'pure_strong_branch' 'explore_then_strong_branch'
+  branching: 'explore_then_strong_branch_idx' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null # None 3
-  num_samples: 30000
-  num_epochs: 2
+  num_samples: 1200 # 10% of GCNN
+  num_epochs: 5
   path_to_load_agent: ''
   
 learner:
