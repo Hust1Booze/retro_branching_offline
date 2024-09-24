@@ -334,10 +334,16 @@ class BipartiteGCN_Cl(torch.nn.Module):
 
 
 
+        ## cancel init mode parameters
+        ##self.init_model_parameters()
 
-        self.init_model_parameters()
 
 
+    def freeze_model_para(self):
+        # freeze pretrained part model para(except head)
+        for layer in [self.cons_embedding, self.edge_embedding, self.var_embedding, self.conv_v_to_c, self.conv_c_to_v]:
+            for param in layer.parameters():
+                param.requires_grad = False
 
 
 

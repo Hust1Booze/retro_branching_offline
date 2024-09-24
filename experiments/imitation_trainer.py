@@ -39,16 +39,7 @@ def run(cfg: DictConfig):
             agent = BipartiteGCN_Cl(device=cfg.experiment.device, config=config, name=cfg.learner.name)
 
             agent.load_state_dict(torch.load(path+f'/networks_params.pkl', map_location=cfg.experiment.device))
-            # for network_name, network in agent.get_networks().items():
-            #     if network is not None:
-            #         try:
-            #             # see if network saved under same var as 'network_name'
-            #             agent.__dict__[network_name].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
-            #         except KeyError:
-            #             # network saved under generic 'network' var (as in Agent class)
-            #             agent.__dict__['network'].load_state_dict(torch.load(path+f'/{network_name}_params.pkl', map_location=cfg.experiment.device))
-            #     else:
-            #         print(f'{network_name} is None.')
+            agent.freeze_model_para()
             print(f'Train il with cl pre-train model in {config}')
         else:
             print('Train il')

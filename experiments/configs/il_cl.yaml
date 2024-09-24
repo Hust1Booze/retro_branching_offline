@@ -16,7 +16,7 @@ experiment:
   max_steps: null # None 3
   num_samples: 12000 # 10% of GCNN
   num_epochs: 100
-  path_to_load_agent: '/data/ltf/code/retro_branching_offline/outputs/pre_train_models/cl_10/gnn/gnn_0/checkpoint_2'
+  path_to_load_agent: '/data/ltf/code/retro_branching_offline/outputs/pre_train_models/cl_100/gnn/gnn_0/checkpoint_2'
   
 learner:
   imitation_target: 'expert_actions' # 'expert_scores' 'expert_score' 'expert_actions' 'expert_bipartite_ranking'
@@ -24,5 +24,5 @@ learner:
   lr: 0.0001
   epoch_log_frequency: 1
   checkpoint_log_frequency: 1
-  name: 'il_cl'
+  name: 'il_10_cl_100'
   
