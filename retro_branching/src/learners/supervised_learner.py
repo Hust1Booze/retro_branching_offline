@@ -247,13 +247,14 @@ class SupervisedLearner(Learner):
         with torch.set_grad_enabled(optimizer is not None):
             for batch in data_loader:
                 
+                #batch.to(self.agent.device)
                 batch_0 = batch[0].to(self.agent.device)
                 batch_1 = batch[1].to(self.agent.device)
-                batch_2 = batch[2].to(self.agent.device)
+                # batch_2 = batch[2].to(self.agent.device)
                 # print(f'\nbatch: {batch}\n constraint_features: {batch.constraint_features.shape} {batch.constraint_features}\n variable_features: {batch.variable_features.shape} {batch.variable_features}')
 
                 # Compute the logits (i.e. pre-softmax activations) according to the agent policy on the concatenated graphs
-                loss = self.agent(batch_0, batch_1, batch_2)
+                loss = self.agent(batch_0,batch_1)
 
                 if optimizer is not None:
                     optimizer.zero_grad()

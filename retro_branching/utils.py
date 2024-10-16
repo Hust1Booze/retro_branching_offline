@@ -481,6 +481,64 @@ class TripleGraphDataset(torch_geometric.data.Dataset):
 
 
 
+class PreSolvedGraphDataset(torch_geometric.data.Dataset):
+    """
+    This class encodes a collection of graphs, as well as a method to load such graphs from the disk.
+    It can be used in turn by the data loaders provided by pytorch geometric.
+    """
+    def __init__(self, sample_files):
+        super().__init__(root=None, transform=None, pre_transform=None)
+        self.sample_files = sample_files
+
+    def len(self):
+        return len(self.sample_files)
+
+    def get(self, index):
+        """
+        This method loads a node bipartite graph observation as saved on the disk during data collection.
+        """
+        with gzip.open(self.sample_files[index], 'rb') as f:
+            sample = pickle.load(f)
+
+        graphs = []
+        #sample : node, brother_node, parent_node = 
+
+        sample_observation,  sample_action, sample_action_set, sample_scores, presolved_observations = sample
+        
+        # We note on which variables we were allowed to branch, the scores as well as the choice 
+        # taken by strong branching (relative to the candidates)
+        candidates = torch.LongTensor(np.array(sample_action_set, dtype=np.int32))
+        try:
+            candidate_scores = torch.FloatTensor([sample_scores[j] for j in candidates])
+            score = []
+        except (TypeError, IndexError):
+            # only given one score and not in a list so not iterable
+            score = torch.FloatTensor([sample_scores])
+            candidate_scores = []
+        candidate_choice = torch.where(candidates == sample_action)[0][0]
+
+        graph = BipartiteNodeData(sample_observation.row_features, sample_observation.edge_features.indices, 
+                                sample_observation.edge_features.values, sample_observation.column_features,
+                                candidates, candidate_choice, candidate_scores, score)
+        
+        # We must tell pytorch geometric how many nodes there are, for indexing purposes
+        graph.num_nodes = sample_observation.row_features.shape[0]+sample_observation.column_features.shape[0]
+
+        
+        for presolved_observation in presolved_observations:
+            presolved_graph = BipartiteNodeData(presolved_observation.row_features, presolved_observation.edge_features.indices, 
+                    presolved_observation.edge_features.values, presolved_observation.column_features,
+                    candidates, candidate_choice, candidate_scores, score)
+            presolved_graph.num_nodes = presolved_observation.row_features.shape[0]+presolved_observation.column_features.shape[0]
+            
+            graphs.append(presolved_graph)
+        #like simCLR two argument/presolve graphs
+        train_graphs = random.sample(graphs, 2)
+        
+        return train_graphs
+
+
+
 
 
 
@@ -798,6 +856,38 @@ class ExploreThenStrongBranch:
         else:
             return (self.pseudocosts_function.extract(model, done), False)
 
+
+class ExploreThenStrongBranch_Save_instance:
+    """
+    This custom observation function class will randomly return either strong branching scores (expensive expert) 
+    or pseudocost scores (weak expert for exploration) when called at every node.
+    """
+    def __init__(self, expert_probability, index):
+        self.expert_probability = expert_probability
+        self.pseudocosts_function = ecole.observation.Pseudocosts()
+        self.strong_branching_function = ecole.observation.StrongBranchingScores()
+        self.index = index
+    
+    def before_reset(self, model):
+        """
+        This function will be called at initialization of the environments (before dynamics are reset).
+        """
+        self.pseudocosts_function.before_reset(model)
+        self.strong_branching_function.before_reset(model)
+    
+    def extract(self, model, done):
+        """
+        Should we return strong branching or pseudocost scores at time node?
+        """
+        probabilities = [1-self.expert_probability, self.expert_probability]
+        expert_chosen = bool(np.random.choice(np.arange(2), p=probabilities))
+        if expert_chosen:
+            m = model.as_pyscipopt()
+            m.writeProblem(f'/data/ltf/code/retro_branching_offline/datasets/strong_branch_instance/{self.index}.lp', trans=True, genericnames=True)
+            return (self.strong_branching_function.extract(model, done), True)
+        else:
+            return (self.pseudocosts_function.extract(model, done), False)
+        
 
 class PureStrongBranch:
     def __init__(self):

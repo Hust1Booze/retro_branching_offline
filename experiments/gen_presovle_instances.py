@@ -31,7 +31,42 @@ param_list = ["presolving/stuffing/","presolving/dualsparsify/","presolving/spar
               "presolving/gateextraction/", "presolving/boundshift/", "presolving/convertinttobin/",
               "presolving/inttobinary/", "presolving/trivial/", 
               ]
+def gen_presolve_instance(instance_path):
 
+    pre_solved_instance_path = []
+    for i in range(len(param_list)):
+
+        model = Model("test")
+        model.hideOutput()
+        model.setLogfile("log_optimized.txt")
+
+        model.readProblem(instance_path)
+
+        model.setParam("limits/time", 600)
+
+        model.setParam(param_list[i] + "priority", 666666)
+        model.setParam(param_list[i] + "maxrounds", 10)
+        model.setParam(param_list[i] + "timing", 16)
+
+        # 进行预处理
+        model.presolve()
+
+        pre_solve_path = get_presolve_path_(instance_path,param_list[i])
+        # 保存预处理之后的模型
+        model.writeProblem(pre_solve_path, trans=True, genericnames=True)
+        pre_solved_instance_path.append(pre_solve_path)
+    
+    return pre_solved_instance_path
+
+def get_presolve_path_(path,presolve_name):
+    # 获取文件名和目录
+    directory, filename = os.path.split(path)
+    presolve_name = presolve_name.replace("/", "_")
+    filename = presolve_name + filename
+    # 组合成新路径
+    pre_solve_path = os.path.join(directory, filename)
+
+    return pre_solve_path
 def with_presolve(Problem):
     model = Model("test")
     model.hideOutput()

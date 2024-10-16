@@ -1,4 +1,4 @@
-from retro_branching.utils import gen_co_name, ExploreThenStrongBranch, PureStrongBranch, seed_stochastic_modules_globally
+from retro_branching.utils import gen_co_name, ExploreThenStrongBranch, PureStrongBranch, seed_stochastic_modules_globally,ExploreThenStrongBranch_Save_instance
 from retro_branching.scip_params import gasse_2019_scip_params, default_scip_params
 from retro_branching.observations import NodeBipariteWithIdx
 
@@ -29,10 +29,12 @@ from omegaconf import DictConfig, OmegaConf
 import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
+from gen_presovle_instances import gen_presolve_instance
+
 
 @ray.remote
 # def run_sampler(co_class, branching, nrows, ncols, max_steps=None, instance=None):
-def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=None):
+def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=None,index = -1):
     '''
     Args:
         branching (str): Branching scheme to use. Must be one of 'explore_then_strong_branch',
@@ -74,6 +76,10 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
         env = ecole.environment.Branching(observation_function=(ExploreThenStrongBranch(expert_probability=0.05),  
                                                                 NodeBipariteWithIdx()), 
                                           scip_params=scip_params)
+    elif branching == 'explore_then_strong_branch_save_instance':
+        env = ecole.environment.Branching(observation_function=(ExploreThenStrongBranch_Save_instance(expert_probability=0.05,index=index),  
+                                                                ecole.observation.NodeBipartite()), 
+                                          scip_params=scip_params)
     else:
         raise Exception('Unrecognised branching {}'.format(branching))
 
@@ -83,7 +89,7 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
     idx_data = {}
     t = 0
     while not done:
-        if branching == 'explore_then_strong_branch':
+        if branching in ['explore_then_strong_branch' ,'explore_then_strong_branch_save_instance']:
             # only save samples if they are coming from the expert (strong branching)
             (scores, save_samples), node_observation = observation
         elif branching == 'pure_strong_branch':
@@ -99,8 +105,26 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
         action = action_set[scores[action_set].argmax()]
 
         if save_samples:
-            data = [node_observation, action, action_set, scores]
-            data_to_save.append(data)
+            if branching == 'explore_then_strong_branch_save_instance':
+                temp_env = ecole.environment.Branching(observation_function=(ecole.observation.NodeBipartite()), 
+                                          scip_params=scip_params)
+                instance_path = f'/data/ltf/code/retro_branching_offline/datasets/strong_branch_instance/{index}.lp'
+                pre_solved_instance_path = gen_presolve_instance(instance_path)
+
+                pre_solved_observations = []
+                for pre_solved_instance in pre_solved_instance_path:
+                    _observation, _action_set, __, _done, __ = temp_env.reset(pre_solved_instance)
+                    _node_observation = _observation
+                    pre_solved_observations.append(_node_observation)
+
+                if None not in pre_solved_observations:
+                    data = [node_observation, action, action_set, scores, pre_solved_observations]
+                    data_to_save.append(data)
+                else:
+                    print('presolved node observation is None!')
+            else:
+                data = [node_observation, action, action_set, scores]
+                data_to_save.append(data)
         if branching == 'explore_then_strong_branch_idx':
                 idx_data[curr_idx] = [node_observation, curr_idx, parent_idx, action, action_set, scores, save_samples]
             #print(f'curr_idx {curr_idx} parent_idx {parent_idx}')
@@ -167,6 +191,13 @@ def run(cfg: DictConfig):
     ecole.seed(cfg.experiment.seed)
     # run epochs until gather enough samples
     orig_start = time.time()
+
+    # run_sampler(co_class=cfg.instances.co_class, 
+    #                                              co_class_kwargs=cfg.instances.co_class_kwargs,
+    #                                              branching=cfg.experiment.branching, 
+    #                                              max_steps=cfg.experiment.max_steps,
+    #                                              instance=None,
+    #                                              index = 1)
     while sample_counter < cfg.experiment.min_samples:
         print('Starting {} parallel processes...'.format(NUM_CPUS*cfg.experiment.num_cpus_factor))
 
@@ -184,7 +215,8 @@ def run(cfg: DictConfig):
                                                  co_class_kwargs=cfg.instances.co_class_kwargs,
                                                  branching=cfg.experiment.branching, 
                                                  max_steps=cfg.experiment.max_steps,
-                                                 instance=instance))
+                                                 instance=instance,
+                                                 index = _))
             epoch_counter += 1
     
         # collect results

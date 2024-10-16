@@ -416,7 +416,34 @@ class BipartiteGCN_Cl(torch.nn.Module):
 
             return loss
 
+        elif len(_obs) == 2:
+            batch_0, batch_1 = _obs
+            variable_features, constraint_features = self.pass_gnn(batch_0.constraint_features, batch_0.edge_index, batch_0.edge_attr, batch_0.variable_features)
+            variable_features_bro, constraint_features_bro = self.pass_gnn(batch_1.constraint_features, batch_1.edge_index, batch_1.edge_attr, batch_1.variable_features)
 
+            # pool , concat and mlp like cambranch method
+            variable_features_avg = self.graph_pool_max(variable_features, batch_0.num_variables)
+            variable_features_bro_avg = self.graph_pool_max(variable_features_bro, batch_1.num_variables)
+            variable_features_max = self.graph_pool_avg(variable_features, batch_0.num_variables)
+            variable_features_bro_max = self.graph_pool_avg(variable_features_bro, batch_1.num_variables)
+
+            variable_features = self.avg_max_head(torch.concat([variable_features_avg, variable_features_max], dim=1))
+            variable_features_bro = self.avg_max_head(torch.concat([variable_features_bro_avg, variable_features_bro_max], dim=1))
+
+            constraint_features_avg = self.graph_pool_max(constraint_features,  batch_0.num_constraints)
+            constraint_features_bro_avg = self.graph_pool_max(constraint_features_bro,  batch_1.num_constraints)
+            constraint_features_max = self.graph_pool_avg(constraint_features,  batch_0.num_constraints)
+            constraint_features_bro_avg = self.graph_pool_avg(constraint_features_bro,  batch_1.num_constraints)
+
+            constraint_features = self.avg_max_head(torch.concat([constraint_features_avg, constraint_features_max], dim=1))
+            constraint_features_bro = self.avg_max_head(torch.concat([constraint_features_bro_avg, variable_features_bro_max], dim=1))
+
+            graph_embd = self.variable_constraint_head(torch.concat([variable_features, constraint_features], dim=1))
+            graph_embd_bro = self.variable_constraint_head(torch.concat([variable_features_bro, constraint_features_bro], dim=1))
+
+            loss = self.cal_infoNCE_loss(graph_embd, graph_embd_bro, graph_embd_parent)
+
+            return loss
         else:
             # need to pre-process observation features
             obs = _obs[0] # unpack

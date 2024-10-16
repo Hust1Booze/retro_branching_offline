@@ -1,6 +1,6 @@
 from retro_branching.learners import SupervisedLearner
 from retro_branching.networks import BipartiteGCN, BipartiteGCNNoHeads, BipartiteGCN_Cl
-from retro_branching.utils import GraphDataset, TripleGraphDataset, seed_stochastic_modules_globally, gen_co_name
+from retro_branching.utils import GraphDataset, TripleGraphDataset,PreSolvedGraphDataset,seed_stochastic_modules_globally, gen_co_name
 from retro_branching.loss_functions import CrossEntropy, JensenShannonDistance, KullbackLeiblerDivergence, BinaryCrossEntropyWithLogits, BinaryCrossEntropy, MeanSquaredError
 
 import torch_geometric 
@@ -18,7 +18,7 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='il.yaml')
+@hydra.main(config_path='configs', config_name='cl.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -66,10 +66,10 @@ def run(cfg: DictConfig):
     valid_files = sample_files[int(0.83*len(sample_files)):]
 
     if cfg.learner.loss_function == 'infoNCE':
-        train_data = TripleGraphDataset(train_files)
-        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=64, shuffle=True)
-        valid_data = TripleGraphDataset(valid_files)
-        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=64, shuffle=False) 
+        train_data = PreSolvedGraphDataset(train_files)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
+        valid_data = PreSolvedGraphDataset(valid_files)
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=32, shuffle=False) 
     else:  
         # init training and validaton data loaders
         train_data = GraphDataset(train_files)
