@@ -83,6 +83,7 @@ class BipartiteGCN_Cl(torch.nn.Module):
         self.profile_time = profile_time
         self.printed_warning = False
         self.to(self.device)
+        self.criterion = torch.nn.CrossEntropyLoss().to(self.device)
 
     def init_from_config(self, config):
         if type(config) == str:
@@ -441,9 +442,9 @@ class BipartiteGCN_Cl(torch.nn.Module):
             graph_embd = self.variable_constraint_head(torch.concat([variable_features, constraint_features], dim=1))
             graph_embd_bro = self.variable_constraint_head(torch.concat([variable_features_bro, constraint_features_bro], dim=1))
 
-            loss = self.cal_infoNCE_loss(graph_embd, graph_embd_bro, graph_embd_parent)
+            logits,label = self.info_nce_loss(graph_embd, graph_embd_bro)
 
-            return loss
+            return self.criterion(logits,label)
         else:
             # need to pre-process observation features
             obs = _obs[0] # unpack
@@ -672,6 +673,42 @@ class BipartiteGCN_Cl(torch.nn.Module):
 
         return loss
 
+
+
+    def info_nce_loss(self, graph_embd,graph_embd_bro):
+
+        features = torch.cat([graph_embd, graph_embd_bro],dim =0)
+        batch_size = graph_embd.shape[0]
+        n_views = 2
+        labels = torch.cat([torch.arange(batch_size) for i in range(n_views)], dim=0)
+        labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
+        labels = labels.to(self.device)
+
+        features = F.normalize(features, dim=1)
+
+        similarity_matrix = torch.matmul(features, features.T)
+        # assert similarity_matrix.shape == (
+        #     self.args.n_views * self.args.batch_size, self.args.n_views * self.args.batch_size)
+        # assert similarity_matrix.shape == labels.shape
+
+        # discard the main diagonal from both: labels and similarities matrix
+        mask = torch.eye(labels.shape[0], dtype=torch.bool).to(self.device)
+        labels = labels[~mask].view(labels.shape[0], -1)
+        similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
+        # assert similarity_matrix.shape == labels.shape
+
+        # select and combine multiple positives
+        positives = similarity_matrix[labels.bool()].view(labels.shape[0], -1)
+
+        # select only the negatives the negatives
+        negatives = similarity_matrix[~labels.bool()].view(similarity_matrix.shape[0], -1)
+
+        logits = torch.cat([positives, negatives], dim=1)
+        labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.device)
+
+        temperature = 0.07
+        logits = logits / temperature
+        return logits, labels
         
     def nums2index(self, nums):
         # change [228,229 ,...] to [0,0,0 ... 1,1,1 ....] format for avg_pool_x

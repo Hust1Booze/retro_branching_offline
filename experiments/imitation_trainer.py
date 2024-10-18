@@ -18,7 +18,7 @@ import shutil
 hydra.HYDRA_FULL_ERROR = 1
 
 
-@hydra.main(config_path='configs', config_name='cl.yaml')
+@hydra.main(config_path='configs', config_name='il.yaml')
 def run(cfg: DictConfig):
     # seeding
     if 'seed' not in cfg.experiment:
@@ -39,7 +39,7 @@ def run(cfg: DictConfig):
             agent = BipartiteGCN_Cl(device=cfg.experiment.device, config=config, name=cfg.learner.name)
 
             agent.load_state_dict(torch.load(path+f'/networks_params.pkl', map_location=cfg.experiment.device))
-            agent.freeze_model_para()
+            #agent.freeze_model_para()
             print(f'Train il with cl pre-train model in {config}')
         else:
             print('Train il')
@@ -67,15 +67,19 @@ def run(cfg: DictConfig):
 
     if cfg.learner.loss_function == 'infoNCE':
         train_data = PreSolvedGraphDataset(train_files)
-        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=128, shuffle=True)
         valid_data = PreSolvedGraphDataset(valid_files)
-        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=32, shuffle=False) 
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=128, shuffle=False) 
     else:  
+        train_data = PreSolvedGraphDataset(train_files,train_cl=False)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=128, shuffle=True)
+        valid_data = PreSolvedGraphDataset(valid_files,train_cl=False)
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=128, shuffle=False) 
         # init training and validaton data loaders
-        train_data = GraphDataset(train_files)
-        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=64, shuffle=True)
-        valid_data = GraphDataset(valid_files)
-        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=64, shuffle=False)
+        # train_data = GraphDataset(train_files)
+        # train_loader = torch_geometric.data.DataLoader(train_data, batch_size=64, shuffle=True)
+        # valid_data = GraphDataset(valid_files)
+        # valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=64, shuffle=False)
     print('Initialised training and validation data loaders.')
 
     # init learner

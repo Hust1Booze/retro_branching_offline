@@ -14,8 +14,8 @@ experiment:
   path_to_save: './'
   branching: 'explore_then_strong_branch_save_instance' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: 1000 # None 3
-  num_samples: 50 #120000 # 10% of GCNN
-  num_epochs: 5
+  num_samples: 120000 #120000 # 10% of GCNN
+  num_epochs: 100
   path_to_load_agent: ''
   
 learner:

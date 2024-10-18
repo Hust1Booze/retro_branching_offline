@@ -1,4 +1,4 @@
-emb_size: 64
+emb_size: 128
 num_rounds: 1
 cons_nfeats: 5
 edge_nfeats: 1

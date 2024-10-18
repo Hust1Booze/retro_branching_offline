@@ -22,7 +22,7 @@ import json
 import copy
 import abc
 import sigfig
-
+from tqdm import tqdm
 
 
 
@@ -116,6 +116,7 @@ class SupervisedLearner(Learner):
             epoch_stats['valid_logits'], epoch_stats['valid_target'], epoch_stats['valid_num_candidates'], = [], [], []
 
             if self.loss_function is None:
+                
                 epoch_stats = self.run_epoch_cl(data_loader=self.train_loader, optimizer=self.optimizer, epoch_stats=epoch_stats)
                 epoch_stats = self.run_epoch_cl(data_loader=self.valid_loader, optimizer=None, epoch_stats=epoch_stats)
             else:
@@ -255,7 +256,7 @@ class SupervisedLearner(Learner):
 
                 # Compute the logits (i.e. pre-softmax activations) according to the agent policy on the concatenated graphs
                 loss = self.agent(batch_0,batch_1)
-
+                
                 if optimizer is not None:
                     optimizer.zero_grad()
                     loss.backward()

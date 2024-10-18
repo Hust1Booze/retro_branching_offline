@@ -486,9 +486,10 @@ class PreSolvedGraphDataset(torch_geometric.data.Dataset):
     This class encodes a collection of graphs, as well as a method to load such graphs from the disk.
     It can be used in turn by the data loaders provided by pytorch geometric.
     """
-    def __init__(self, sample_files):
+    def __init__(self, sample_files,train_cl = True):
         super().__init__(root=None, transform=None, pre_transform=None)
         self.sample_files = sample_files
+        self.train_cl = train_cl
 
     def len(self):
         return len(self.sample_files)
@@ -535,7 +536,10 @@ class PreSolvedGraphDataset(torch_geometric.data.Dataset):
         #like simCLR two argument/presolve graphs
         train_graphs = random.sample(graphs, 2)
         
-        return train_graphs
+        if self.train_cl:
+            return train_graphs
+        else:
+            return graph
 
 
 
@@ -883,7 +887,7 @@ class ExploreThenStrongBranch_Save_instance:
         expert_chosen = bool(np.random.choice(np.arange(2), p=probabilities))
         if expert_chosen:
             m = model.as_pyscipopt()
-            m.writeProblem(f'/data/ltf/code/retro_branching_offline/datasets/strong_branch_instance/{self.index}.lp', trans=True, genericnames=True)
+            m.writeProblem(f'/lab/shiyh_lab/12332470/code/presolve/retro_branching_offline/datasets/strong_branch_instance/{self.index}.lp', trans=True, genericnames=True)
             return (self.strong_branching_function.extract(model, done), True)
         else:
             return (self.pseudocosts_function.extract(model, done), False)

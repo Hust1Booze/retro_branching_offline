@@ -12,8 +12,8 @@ experiment:
   device: 'cuda:0'
   path_to_load_imitation_data: '/data/ltf/code/retro_branching_offline/datasets'
   path_to_save: './'
-  branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
-  max_steps: null # None 3
+  branching: 'explore_then_strong_branch_save_instance' # 'pure_strong_branch' 'explore_then_strong_branch'
+  max_steps: 1000 # None 3
   num_samples: 12000
   num_epochs: 100
   path_to_load_agent: ''
