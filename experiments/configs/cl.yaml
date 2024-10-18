@@ -15,14 +15,14 @@ experiment:
   branching: 'explore_then_strong_branch_save_instance' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: 1000 # None 3
   num_samples: 120000 #120000 # 10% of GCNN
-  num_epochs: 100
+  num_epochs: 1000
   path_to_load_agent: ''
-  
+  batch_size: 256
 learner:
   imitation_target: 'expert_actions' # 'expert_scores' 'expert_score' 'expert_actions' 'expert_bipartite_ranking'
   loss_function: 'infoNCE' # mean_squared_error cross_entropy jensen_shannon_distance kullback_leibler_divergence
   lr: 0.0001
   epoch_log_frequency: 1
   checkpoint_log_frequency: 1
-  name: 'cl_100'
+  name: 'cl'
   

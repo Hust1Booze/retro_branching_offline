@@ -67,14 +67,14 @@ def run(cfg: DictConfig):
 
     if cfg.learner.loss_function == 'infoNCE':
         train_data = PreSolvedGraphDataset(train_files)
-        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=128, shuffle=True)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=cfg.experiment.batch_size, shuffle=True)
         valid_data = PreSolvedGraphDataset(valid_files)
-        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=128, shuffle=False) 
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=cfg.experiment.batch_size, shuffle=False) 
     else:  
         train_data = PreSolvedGraphDataset(train_files,train_cl=False)
-        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=128, shuffle=True)
+        train_loader = torch_geometric.data.DataLoader(train_data, batch_size=cfg.experiment.batch_size, shuffle=True)
         valid_data = PreSolvedGraphDataset(valid_files,train_cl=False)
-        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=128, shuffle=False) 
+        valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=cfg.experiment.batch_size, shuffle=False) 
         # init training and validaton data loaders
         # train_data = GraphDataset(train_files)
         # train_loader = torch_geometric.data.DataLoader(train_data, batch_size=64, shuffle=True)
