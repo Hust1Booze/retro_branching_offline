@@ -17,6 +17,7 @@ experiment:
   num_samples: 12000 # 10% of GCNN
   num_epochs: 100
   path_to_load_agent: '/data/ltf/code/retro_branching_offline/outputs/pre_train_models/presolve/cl_100/gnn/gnn_0/checkpoint_99'
+  batch_size: 256
   
 learner:
   imitation_target: 'expert_actions' # 'expert_scores' 'expert_score' 'expert_actions' 'expert_bipartite_ranking'

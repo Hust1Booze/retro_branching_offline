@@ -125,7 +125,7 @@ class SupervisedLearner(Learner):
 
             self.update_epoch_log(epoch_stats)
             if self.epoch_counter % self.epoch_log_frequency == 0 and self.epoch_log_frequency != float('inf'):
-                print(self.get_epoch_log_str())
+                print(self.get_epoch_log_str(),flush=True)
             if self.path_to_save is not None:
                 if self.epoch_counter % self.checkpoint_frequency == 0:
                     self.save_checkpoint({'epochs_log': self.epochs_log})
