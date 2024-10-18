@@ -6,8 +6,8 @@ instances:
 
 experiment:
   seed: 0
-  path_to_save: '/data/ltf/code/retro_branching_offline/datasets'
-  num_cpus_factor: 5
+  path_to_save: '/lab/shiyh_lab/12332470/code/presolve/retro_branching_offline/datasets'
+  num_cpus_factor: 20
   branching: 'explore_then_strong_branch_save_instance' # 'pure_strong_branch' 'explore_then_strong_branch'
-  min_samples: 50 #126000
+  min_samples: 126000 #126000
   max_steps: 1000 # None 3

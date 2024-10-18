@@ -108,7 +108,7 @@ def run_sampler(co_class, co_class_kwargs, branching, max_steps=None, instance=N
             if branching == 'explore_then_strong_branch_save_instance':
                 temp_env = ecole.environment.Branching(observation_function=(ecole.observation.NodeBipartite()), 
                                           scip_params=scip_params)
-                instance_path = f'/data/ltf/code/retro_branching_offline/datasets/strong_branch_instance/{index}.lp'
+                instance_path = f'/lab/shiyh_lab/12332470/code/presolve/retro_branching_offline/datasets/strong_branch_instance/{index}.lp'
                 pre_solved_instance_path = gen_presolve_instance(instance_path)
 
                 pre_solved_observations = []

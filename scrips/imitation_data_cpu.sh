@@ -9,7 +9,7 @@
 source activate retro_branch_dt
 
 root_dir=$(pwd)
-root_dir='/lab/shiyh_lab/12332470/code/contrastive/retro_branching_offline/datasets'
+root_dir='/lab/shiyh_lab/12332470/code/presolve/retro_branching_offline/datasets'
 echo "root_dir:"${root_dir}
 
 # set_coverinh
